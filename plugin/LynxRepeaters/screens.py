@@ -258,14 +258,13 @@ class RepeaterList(Screen):
 
 class LynxBar(Screen):
     skin = _scale("""
-<screen name="LynxBar" position="0,920" size="1920,160" backgroundColor="#ff000000" flags="wfNoBorder">
-  <eLabel position="60,10" size="1800,130" backgroundColor="#30141414"/>
-  <eLabel position="60,10" size="12,130" backgroundColor="#00d0021b"/>
-  <widget name="call" position="100,18" size="300,70" font="Regular;54" foregroundColor="#00ffffff" backgroundColor="#30141414" transparent="1"/>
-  <widget name="where" position="400,18" size="900,70" font="Regular;36" valign="center" foregroundColor="#00ffffff" backgroundColor="#30141414" transparent="1"/>
-  <widget name="signal" position="1300,18" size="530,70" font="Regular;40" halign="right" valign="center" foregroundColor="#00ffd200" backgroundColor="#30141414" transparent="1"/>
-  <widget name="tech" position="100,88" size="1300,44" font="Regular;28" valign="center" foregroundColor="#00c0c0c0" backgroundColor="#30141414" transparent="1"/>
-  <eLabel text="OK hide   EXIT list   RED leave Lynx" position="1300,88" size="530,44" font="Regular;24" halign="right" valign="center" foregroundColor="#00909090" backgroundColor="#30141414" transparent="1"/>
+<screen name="LynxBar" position="60,930" size="1800,130" backgroundColor="#00141414" flags="wfNoBorder">
+  <eLabel position="0,0" size="12,130" backgroundColor="#00d0021b"/>
+  <widget name="call" position="40,8" size="300,70" font="Regular;54" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
+  <widget name="where" position="340,8" size="900,70" font="Regular;36" valign="center" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
+  <widget name="signal" position="1240,8" size="530,70" font="Regular;40" halign="right" valign="center" foregroundColor="#00ffd200" backgroundColor="#00141414"/>
+  <widget name="tech" position="40,78" size="1200,44" font="Regular;28" valign="center" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
+  <eLabel text="OK hide   EXIT list   RED leave Lynx" position="1240,78" size="530,44" font="Regular;24" halign="right" valign="center" foregroundColor="#00909090" backgroundColor="#00141414"/>
 </screen>""")
 
     def __init__(self, session, entry):
