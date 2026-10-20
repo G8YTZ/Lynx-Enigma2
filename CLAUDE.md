@@ -19,7 +19,7 @@ British English, metric. No long dashes (use a colon, semicolon, comma, brackets
   - The Lynx bar shows the broadcast (SDT) name live, large, with the list's callsign, town and distance beside it.
 - `data/repeaters.json`: 31 repeaters, 27 watchable outputs. `tools/deploy.sh` copies it beside the plugin.
 - `tests/test_plugin.py`: List and tuner logic against stand-ins for Enigma2 (`tests/fake_enigma.py`).
-- Next: **First run on the box** (`tools/deploy.sh`, then watch GB3OO; `tools/foreground.sh` for the traceback if it fails). Still to confirm: that a rescan of a known transponder plays again, the SNR shown on the Lynx bar, the symbol-rate hunt, skin look. BATC streams are written (20 Oct) but not yet run on the box; Streams play via gstplayer (5001), yellow on the bar for exteplayer3. The box's clock is now right (NTP working). Then plan step 5.
+- **Where it is (20 Oct 2026, end of day):** Running on OpenATV 8.0.1: on air (GB3EN/Lynx-Tx, 4K HEVC), BATC streams via gstplayer, CH+/CH- hopping between them, Open Lynx at start-up, the deliberate exit, the 10 s return to the picture. README rewritten as the user guide (set up the box, install, update, use, troubleshoot). Still to confirm: a rescan of a known transponder, the symbol-rate hunt, signal power/BER a few seconds after lock. **Next: plan step 5** (repeater list updates without a redeploy, then an `.ipk`; the repo is private, so the list needs a public home such as gb3oo.co.uk or the repo going public).
 
 ## The test box
 
