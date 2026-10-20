@@ -45,6 +45,10 @@ BANDS = {
     "3cm": (10000, 10500, 9000, "an LNB with a 9 GHz oscillator"),
 }
 
+# The lowest symbol rate the Zgemma H11S's tuner locks to reliably (1000 kS/s
+# usually works, 20 Oct 2026). Outputs below it are left off the list.
+MIN_SR_KS = 1000
+
 # Tried in turn when a repeater's symbol rate is not known.
 COMMON_SR_KS = (2000, 1500, 1000, 4000, 1300, 3000)
 
@@ -111,6 +115,8 @@ def watchable(repeaters: list[dict], lnb_osc: dict | None = None) -> list[dict]:
         for o in r.get("outputs", []):
             if o.get("mode") not in ("DVB-S", "DVB-S2", None):
                 continue                      # analogue: the box cannot show it
+            if o.get("sr_ks") and o["sr_ks"] < MIN_SR_KS:
+                continue                      # below what the tuner locks to
             band = band_of(o["freq_mhz"])
             if not band:
                 continue

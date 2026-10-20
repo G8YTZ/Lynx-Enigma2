@@ -1,0 +1,677 @@
+{
+ "about": "UK amateur TV repeaters for Lynx-Enigma2. Frequencies, locations and status from the RSGB ETCC list (ukrepeater.net), which is the authority; mode, symbol rate and FEC from the BATC wiki where it gives them. null means not known: the plugin then tries the common symbol rates in turn.",
+ "sources": [
+  "https://ukrepeater.net/tvrepeaterlist.html",
+  "https://wiki.batc.org.uk/UK_ATV_repeaters"
+ ],
+ "updated": "2026-10-20",
+ "repeaters": [
+  {
+   "call": "GB3CT",
+   "town": "Caistor",
+   "locator": "IO93UM",
+   "lat": 53.5,
+   "lon": -0.31,
+   "keeper": "G7KPM",
+   "www": null,
+   "status": "not yet on air",
+   "outputs": [
+    {
+     "freq_mhz": 3404.0,
+     "mode": "DVB-S2",
+     "sr_ks": 1000,
+     "fec": "3/4",
+     "codec": "H.264",
+     "source": "BATC wiki"
+    }
+   ]
+  },
+  {
+   "call": "GB3DO",
+   "town": "Bangor",
+   "locator": "IO74DP",
+   "lat": 54.64,
+   "lon": -5.69,
+   "keeper": "GI4DOH",
+   "www": null,
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 1310.0,
+     "mode": null,
+     "sr_ks": null,
+     "fec": null,
+     "codec": null,
+     "source": "ETCC only"
+    }
+   ]
+  },
+  {
+   "call": "GB3EN",
+   "town": "North London",
+   "locator": "IO91XP",
+   "lat": 51.65,
+   "lon": -0.08,
+   "keeper": "G4DFB",
+   "www": null,
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 1312.0,
+     "mode": "DVB-S2",
+     "sr_ks": 1000,
+     "fec": "2/3",
+     "codec": "H.265",
+     "source": "BATC forum"
+    }
+   ]
+  },
+  {
+   "call": "GB3ET",
+   "town": "Banbury",
+   "locator": "IO92",
+   "lat": null,
+   "lon": null,
+   "keeper": "M1CNJ",
+   "www": null,
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 1322.0,
+     "mode": "DVB-S",
+     "sr_ks": 2000,
+     "fec": null,
+     "codec": "MPEG-2",
+     "source": "BATC wiki"
+    }
+   ]
+  },
+  {
+   "call": "GB3EY",
+   "town": "Hull",
+   "locator": "IO93RS",
+   "lat": 53.78,
+   "lon": -0.55,
+   "keeper": "M1ASR",
+   "www": "http://eyrg.net",
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 1308.0,
+     "mode": "DVB-S2",
+     "sr_ks": 1000,
+     "fec": "3/4",
+     "codec": "H.265",
+     "source": "BATC wiki"
+    }
+   ],
+   "hours": "14:00 to 23:00"
+  },
+  {
+   "call": "GB3FT",
+   "town": "Blackpool",
+   "locator": "IO83LU",
+   "lat": 53.86,
+   "lon": -3.05,
+   "keeper": "G3UIS",
+   "www": null,
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 1315.0,
+     "mode": "DVB-S2",
+     "sr_ks": 500,
+     "fec": null,
+     "codec": null,
+     "source": "BATC wiki"
+    }
+   ]
+  },
+  {
+   "call": "GB3FV",
+   "town": "Spalding",
+   "locator": "JO02AR",
+   "lat": 52.75,
+   "lon": 0.05,
+   "keeper": "G1TUL",
+   "www": null,
+   "status": "off",
+   "outputs": [
+    {
+     "freq_mhz": 1322.0,
+     "mode": null,
+     "sr_ks": null,
+     "fec": null,
+     "codec": null,
+     "source": "ETCC only"
+    }
+   ]
+  },
+  {
+   "call": "GB3FW",
+   "town": "Portsmouth",
+   "locator": "IO90LU",
+   "lat": 50.85,
+   "lon": -1.07,
+   "keeper": "G0IEY",
+   "www": "http://scartgroup.co.uk",
+   "status": "off",
+   "outputs": [
+    {
+     "freq_mhz": 3406.0,
+     "mode": null,
+     "sr_ks": null,
+     "fec": null,
+     "codec": null,
+     "source": "ETCC only"
+    }
+   ]
+  },
+  {
+   "call": "GB3GG",
+   "town": "Grimsby",
+   "locator": "IO93XN",
+   "lat": 53.57,
+   "lon": -0.07,
+   "keeper": "G0ATW",
+   "www": null,
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 1310.0,
+     "mode": "DVB-S2",
+     "sr_ks": 1000,
+     "fec": "2/3",
+     "codec": null,
+     "source": "BATC wiki"
+    }
+   ],
+   "hours": "mostly Friday evenings from 20:00"
+  },
+  {
+   "call": "GB3GV",
+   "town": "Markfield",
+   "locator": "IO92IQ",
+   "lat": 52.69,
+   "lon": -1.28,
+   "keeper": "M0VSE",
+   "www": "http://www.leicestershirerepeatergroup.org.uk/",
+   "status": "off",
+   "outputs": [
+    {
+     "freq_mhz": 1318.5,
+     "mode": null,
+     "sr_ks": 4000,
+     "fec": "1/2",
+     "codec": null,
+     "source": "BATC wiki"
+    }
+   ]
+  },
+  {
+   "call": "GB3HV",
+   "town": "Alton",
+   "locator": "IO91LD",
+   "lat": 51.13,
+   "lon": -1.06,
+   "keeper": "G8CKN",
+   "www": null,
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 1308.0,
+     "mode": "DVB-S2",
+     "sr_ks": 1000,
+     "fec": "2/3",
+     "codec": null,
+     "source": "BATC wiki"
+    }
+   ],
+   "hours": "10:00 to 23:30 UTC, on the hour to the half hour; any time on a valid input"
+  },
+  {
+   "call": "GB3JT",
+   "town": "Maidstone",
+   "locator": "JO01HH",
+   "lat": 51.3,
+   "lon": 0.6,
+   "keeper": "G8PUO",
+   "www": "http://scartgroup.co.uk",
+   "status": "off",
+   "outputs": [
+    {
+     "freq_mhz": 1318.0,
+     "mode": "DVB-S",
+     "sr_ks": 4000,
+     "fec": "1/2",
+     "codec": null,
+     "source": "BATC wiki"
+    }
+   ]
+  },
+  {
+   "call": "GB3JV",
+   "town": "Petts Wood",
+   "locator": "JO01AJ",
+   "lat": 51.39,
+   "lon": 0.07,
+   "keeper": "G8YTZ",
+   "www": "http://www.gb3jv.co.uk/",
+   "status": "off",
+   "outputs": [
+    {
+     "freq_mhz": 3404.0,
+     "mode": "DVB-S2",
+     "sr_ks": 2000,
+     "fec": "4/5",
+     "codec": null,
+     "source": "BATC wiki"
+    }
+   ]
+  },
+  {
+   "call": "GB3KM",
+   "town": "Spennymoor",
+   "locator": "IO94EQ",
+   "lat": 54.68,
+   "lon": -1.6,
+   "keeper": "G1LPS",
+   "www": null,
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 3406.0,
+     "mode": "DVB-S",
+     "sr_ks": 2000,
+     "fec": "7/8",
+     "codec": "MPEG-2",
+     "source": "BATC wiki"
+    },
+    {
+     "freq_mhz": 10065.0,
+     "mode": "analogue",
+     "sr_ks": null,
+     "fec": null,
+     "codec": null,
+     "source": "BATC wiki"
+    },
+    {
+     "freq_mhz": 2440.0,
+     "mode": "analogue",
+     "sr_ks": null,
+     "fec": null,
+     "codec": null,
+     "source": "BATC wiki"
+    },
+    {
+     "freq_mhz": 1304.0,
+     "mode": null,
+     "sr_ks": null,
+     "fec": null,
+     "codec": null,
+     "source": "ETCC only"
+    }
+   ],
+   "hours": "11:30 to 23:30"
+  },
+  {
+   "call": "GB3LX",
+   "town": "Lincoln",
+   "locator": "IO93RF",
+   "lat": 53.23,
+   "lon": -0.54,
+   "keeper": "M5SJM",
+   "www": null,
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 10240.0,
+     "mode": "analogue",
+     "sr_ks": null,
+     "fec": null,
+     "codec": null,
+     "source": "BATC wiki"
+    }
+   ]
+  },
+  {
+   "call": "GB3NQ",
+   "town": "Roche",
+   "locator": "IO70OJ",
+   "lat": 50.38,
+   "lon": -4.83,
+   "keeper": "M0BFB",
+   "www": "http://mcbarg.co.uk/",
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 1316.0,
+     "mode": "DVB-S2",
+     "sr_ks": 2000,
+     "fec": "4/5",
+     "codec": "H.265",
+     "source": "BATC wiki"
+    },
+    {
+     "freq_mhz": 1318,
+     "mode": null,
+     "sr_ks": 333,
+     "fec": null,
+     "codec": null,
+     "source": "BATC wiki (not on ETCC)"
+    }
+   ],
+   "hours": "beacon midday to 21:00"
+  },
+  {
+   "call": "GB3OO",
+   "town": "Folkestone",
+   "locator": "JO01NC",
+   "lat": 51.11,
+   "lon": 1.14,
+   "keeper": "G8YTZ",
+   "www": "http://gb3oo.co.uk",
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 1304.0,
+     "mode": "DVB-S2",
+     "sr_ks": 2000,
+     "fec": "3/4",
+     "codec": "H.265",
+     "source": "BATC wiki"
+    }
+   ]
+  },
+  {
+   "call": "GB3PV",
+   "town": "Cambridge",
+   "locator": "JO02AF",
+   "lat": 52.22,
+   "lon": 0.04,
+   "keeper": "M0ZPU",
+   "www": "http://www.cambridgerepeaters.net/",
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 1316.0,
+     "mode": null,
+     "sr_ks": 1000,
+     "fec": null,
+     "codec": null,
+     "source": "BATC wiki"
+    }
+   ]
+  },
+  {
+   "call": "GB3SQ",
+   "town": "Bournemouth",
+   "locator": "IO90BR",
+   "lat": 50.74,
+   "lon": -1.87,
+   "keeper": "G4KLB",
+   "www": null,
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 1304.0,
+     "mode": "DVB-S",
+     "sr_ks": 4000,
+     "fec": "1/2",
+     "codec": null,
+     "source": "BATC wiki"
+    }
+   ],
+   "hours": "10:00 to 23:00"
+  },
+  {
+   "call": "GB3TG",
+   "town": "Milton Keynes",
+   "locator": "IO91PX",
+   "lat": 51.97,
+   "lon": -0.68,
+   "keeper": "G8XTW",
+   "www": null,
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 10240.0,
+     "mode": null,
+     "sr_ks": null,
+     "fec": null,
+     "codec": null,
+     "source": "ETCC only"
+    }
+   ]
+  },
+  {
+   "call": "GB3TM",
+   "town": "Amlwch",
+   "locator": "IO73UJ",
+   "lat": 53.39,
+   "lon": -4.3,
+   "keeper": "MW0LLK",
+   "www": null,
+   "status": "off",
+   "outputs": [
+    {
+     "freq_mhz": 1316.0,
+     "mode": "DVB-S",
+     "sr_ks": 4167,
+     "fec": null,
+     "codec": null,
+     "source": "BATC wiki"
+    }
+   ]
+  },
+  {
+   "call": "GB3TN",
+   "town": "Fakenham",
+   "locator": "JO02KS",
+   "lat": 52.79,
+   "lon": 0.88,
+   "keeper": "G4WVU",
+   "www": "http://www.gb3nb.org.uk/",
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 1316.0,
+     "mode": "analogue",
+     "sr_ks": null,
+     "fec": null,
+     "codec": null,
+     "source": "BATC wiki"
+    }
+   ]
+  },
+  {
+   "call": "GB3TT",
+   "town": "Sheffield",
+   "locator": "IO93GK",
+   "lat": 53.42,
+   "lon": -1.44,
+   "keeper": "M1ERS",
+   "www": null,
+   "status": "off",
+   "outputs": [
+    {
+     "freq_mhz": 1310.0,
+     "mode": null,
+     "sr_ks": null,
+     "fec": null,
+     "codec": null,
+     "source": "ETCC only"
+    }
+   ]
+  },
+  {
+   "call": "GB3TV",
+   "town": "Dunstable",
+   "locator": "IO91RU",
+   "lat": 51.85,
+   "lon": -0.54,
+   "keeper": "G4ENB",
+   "www": null,
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 1318.5,
+     "mode": null,
+     "sr_ks": null,
+     "fec": null,
+     "codec": null,
+     "source": "ETCC only"
+    }
+   ]
+  },
+  {
+   "call": "GB3TZ",
+   "town": "Luton Beds",
+   "locator": "IO91SV",
+   "lat": 51.88,
+   "lon": -0.47,
+   "keeper": "G8XTW",
+   "www": null,
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 2440.0,
+     "mode": null,
+     "sr_ks": null,
+     "fec": null,
+     "codec": null,
+     "source": "ETCC only"
+    },
+    {
+     "freq_mhz": 2326.0,
+     "mode": null,
+     "sr_ks": null,
+     "fec": null,
+     "codec": null,
+     "source": "ETCC only"
+    }
+   ]
+  },
+  {
+   "call": "GB3UD",
+   "town": "Stoke On Trent",
+   "locator": "IO83VC",
+   "lat": 53.11,
+   "lon": -2.21,
+   "keeper": "G4DHO",
+   "www": null,
+   "status": "off",
+   "outputs": [
+    {
+     "freq_mhz": 1318.5,
+     "mode": null,
+     "sr_ks": 4000,
+     "fec": "1/2",
+     "codec": null,
+     "source": "BATC wiki"
+    }
+   ]
+  },
+  {
+   "call": "GB3UT",
+   "town": "Bath",
+   "locator": "IO81UJ",
+   "lat": 51.38,
+   "lon": -2.33,
+   "keeper": "G8DRK",
+   "www": "http://gb3ut.co.uk",
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 1311.5,
+     "mode": "analogue",
+     "sr_ks": null,
+     "fec": null,
+     "codec": null,
+     "source": "BATC wiki"
+    }
+   ]
+  },
+  {
+   "call": "GB3VL",
+   "town": "Lincoln",
+   "locator": "IO93RF",
+   "lat": 53.23,
+   "lon": -0.54,
+   "keeper": "M5SJM",
+   "www": "http://lincolnrepeaters.co.uk/",
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 1310.0,
+     "mode": null,
+     "sr_ks": 4000,
+     "fec": null,
+     "codec": null,
+     "source": "BATC wiki"
+    }
+   ]
+  },
+  {
+   "call": "GB3XY",
+   "town": "Hull",
+   "locator": "IO93RS",
+   "lat": 53.78,
+   "lon": -0.55,
+   "keeper": "G3GJA",
+   "www": "http://www.eyrg.net",
+   "status": "off",
+   "outputs": [
+    {
+     "freq_mhz": 10065.0,
+     "mode": null,
+     "sr_ks": null,
+     "fec": null,
+     "codec": null,
+     "source": "ETCC only"
+    }
+   ]
+  },
+  {
+   "call": "GB3YT",
+   "town": "Barnsley",
+   "locator": "IO93GM",
+   "lat": 53.51,
+   "lon": -1.48,
+   "keeper": "G8VDP",
+   "www": "http://www.gb3yt.co.uk/",
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 1316.0,
+     "mode": "DVB-S",
+     "sr_ks": 1000,
+     "fec": "3/4",
+     "codec": null,
+     "source": "BATC wiki"
+    }
+   ]
+  },
+  {
+   "call": "GB3ZZ",
+   "town": "Bristol City Centre",
+   "locator": "IO81RM",
+   "lat": 51.51,
+   "lon": -2.57,
+   "keeper": "G8VPG",
+   "www": "http://www.stvg.co.uk/",
+   "status": "on",
+   "outputs": [
+    {
+     "freq_mhz": 1316.0,
+     "mode": "DVB-S2",
+     "sr_ks": 1500,
+     "fec": "1/2",
+     "codec": "H.264",
+     "source": "BATC wiki"
+    }
+   ],
+   "hours": "09:00 to 13:00 and 15:30 to 18:30"
+  }
+ ]
+}
