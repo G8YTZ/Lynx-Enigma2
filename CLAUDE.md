@@ -15,6 +15,7 @@ British English, metric. No long dashes (use a colon, semicolon, comma, brackets
   - `streams.py`: BATC live list (same API and filters as Lynx Rx), matched to repeaters by callsign; RTMP address always built as `rtmp://rtmp.batc.org.uk/live/<name>` (names checked against `[A-Za-z0-9_.-]`); "BATC Live" bouquet `userbouquet.lynx_batc.tv` added to `bouquets.tv`; cache `/etc/enigma2/lynx_streams.json`. Unverified HTTPS only as a fallback when the box lacks CA certificates.
   - `sync.py`: `StreamSync`, hourly, first check a minute after boot; network in a worker thread, files and `reloadBouquets()` on Enigma2's thread; keeps the last list on error.
   - `plugin.py`: Descriptor, Plugins and Extensions menus, session start (stream sync, Open Lynx at start-up).
+  - **Stream-only rows:** BATC streams flagged as repeaters that match no listed repeater (DB0OZ Bremen, Oscar 100 net) go at the end of the Lynx list as "Stream only"; OK and yellow both watch the stream. A UK repeater hidden as off air but streaming shows there too.
   - The Lynx bar shows the broadcast (SDT) name live, large, with the list's callsign, town and distance beside it.
 - `data/repeaters.json`: 31 repeaters, 27 watchable outputs. `tools/deploy.sh` copies it beside the plugin.
 - `tests/test_plugin.py`: List and tuner logic against stand-ins for Enigma2 (`tests/fake_enigma.py`).

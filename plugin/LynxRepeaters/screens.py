@@ -189,6 +189,11 @@ class RepeaterList(Screen):
             e["stream"] = self._stream_for(e)
             rows.append((e, e["call"], e["town"], km, "%g MHz" % o["freq_mhz"], sr, colour,
                          _("LIVE") if e["stream"] else ""))
+        # Repeaters seen only on the BATC streamer, at the end of the list.
+        if cfg.streams.value:
+            for x in streams.stream_only(self.sync.streams, [e["call"] for e in self.entries]):
+                e = dict(x, stream_only=True, km=None, approx=False, status="on")
+                rows.append((e, e["call"], e["town"], "", _("Stream only"), "", WHITE, _("LIVE")))
         self["list"].setList(rows)
         loc = cfg.locator.value.strip().upper()
         self["where"].setText(_("From %s") % loc if here else _("Set your locator in Settings (blue)"))
@@ -208,6 +213,14 @@ class RepeaterList(Screen):
             self["key_yellow"].setText("")
             self["call"].setText("")
             self["details"].setText(_("No repeaters to show."))
+            return
+        if e.get("stream_only"):
+            self["call"].setText(e["call"])
+            self["details"].setText("\n".join([e["town"], "", _("On the BATC streamer only:"),
+                                               _("not on the UK repeater list, so"), _("there is nothing to tune on air."),
+                                               "", e["stream"]["name"]]))
+            self["live"].setText(_("Streaming now on BATC: OK or yellow to watch"))
+            self["key_yellow"].setText(_("Watch stream") if not self.tuner.busy else "")
             return
         o = e["output"]
         lines = [e["town"]]
@@ -244,6 +257,8 @@ class RepeaterList(Screen):
         e = self._current()
         if not e or self.tuner.busy:
             return
+        if e.get("stream_only"):
+            return self.watch_stream()
         rec = getattr(self.session.nav, "RecordTimer", None)
         if rec and rec.isRecording():
             self.session.open(MessageBox, _("The box is recording. Stop the recording first."), MessageBox.TYPE_INFO)
@@ -332,7 +347,9 @@ class RepeaterList(Screen):
         if self.tuner.busy:
             return
         choices = []
-        if e:
+        if e and e.get("stream_only"):
+            choices.append((_("Watch %s on the BATC streamer") % e["call"], self.watch_stream))
+        elif e:
             choices.append((_("Watch %s on air") % e["call"], self.watch))
             if e.get("stream"):
                 choices.append((_("Watch %s on the BATC streamer") % e["call"], self.watch_stream))

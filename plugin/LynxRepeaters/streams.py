@@ -114,6 +114,30 @@ def for_call(streams, call):
     return None
 
 
+_CALL = re.compile(r"^[A-Z0-9]{1,3}[0-9][A-Z0-9]{1,4}$")
+
+
+def stream_only(streams, listed_calls):
+    """Streams BATC marks as repeaters that match no repeater on the list
+    (DB0OZ Bremen, say): one entry each, callsign and place split from the
+    stream's title where it starts with a callsign."""
+    listed = [c.lower() for c in listed_calls]
+    out = []
+    for s in streams:
+        if not s.get("repeater"):
+            continue
+        if any(for_call([s], c) for c in listed):
+            continue
+        words = s["name"].split(None, 1)
+        if words and _CALL.match(words[0].upper()):
+            call, town = words[0].upper(), (words[1] if len(words) > 1 else "")
+        else:
+            call, town = s["name"], ""
+        out.append({"call": call, "town": town, "stream": s})
+    out.sort(key=lambda x: x["call"])
+    return out
+
+
 def service_ref(stream, stype=4097):
     """An Enigma2 service for a stream: the player's service type, URL with
     its colon escaped, then the name to show."""

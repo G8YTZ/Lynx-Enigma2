@@ -282,6 +282,18 @@ def test_fix_clock_only_when_wrong():
     assert sync.fix_clock() is True and calls[0][1:] == ["-b", "pool.ntp.org"]
     sync.SANE_YEAR = old
 
+
+def test_stream_only_repeaters():
+    from LynxRepeaters import streams
+    got = streams.parse({"r": [
+        {"active": 1, "stream_listed": "1", "stream_title": "DB0OZ Bremen", "stream_output_url": "db0oz", "stream_type_repeater": "1"},
+        {"active": 1, "stream_listed": "1", "stream_title": "GB3OO Folkestone", "stream_output_url": "gb3oo", "stream_type_repeater": "1"},
+        {"active": 1, "stream_listed": "1", "stream_title": "Oscar 100 net", "stream_output_url": "oscar100net", "stream_type_repeater": "1"},
+        {"active": 1, "stream_listed": "1", "stream_title": "G8YTZ shack", "stream_output_url": "g8ytz"}]})
+    only = streams.stream_only(got, ["GB3OO", "GB3EN"])
+    assert [(x["call"], x["town"]) for x in only] == [("DB0OZ", "Bremen"), ("Oscar 100 net", "")]
+    assert only[0]["stream"]["key"] == "db0oz"
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):
