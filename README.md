@@ -34,6 +34,8 @@ That copies the plugin to `/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeat
 - **BATC Live:** Lynx checks the BATC streamer every hour and keeps a **BATC Live** channel list, so live streams can be watched from the box's ordinary channel list too.
 - While watching, the Lynx bar shows callsign, town, distance and live SNR. **OK** hides it, **EXIT** goes back to the list, **red** leaves Lynx with the repeater still on.
 
+For the BATC streams, install ServiceApp on the box first (`opkg install enigma2-plugin-systemplugins-serviceapp exteplayer3`): Lynx then plays streams through exteplayer3, which copes with live RTMP far better than the box's own player.
+
 Tests (on any PC): `python3 tests/test_plugin.py`
 
 ## Licence

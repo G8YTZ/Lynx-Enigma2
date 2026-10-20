@@ -41,6 +41,25 @@ BOUQUET = "userbouquet.lynx_batc.tv"
 BOUQUET_DIR = "/etc/enigma2"
 BOUQUET_TITLE = "BATC Live"
 
+# Enigma2 service types for internet streams. 4097 is the image's own player
+# (on HiSilicon boxes, HiSilicon's, which often misses the video of a live
+# RTMP stream); 5002 and 5001 come with the ServiceApp add-on: exteplayer3
+# (ffmpeg) and gstplayer (GStreamer).
+PLAYERS = {"builtin": 4097, "exteplayer3": 5002, "gstplayer": 5001}
+SERVICEAPP = "/usr/lib/enigma2/python/Plugins/SystemPlugins/ServiceApp"
+EXTEPLAYER3 = "/usr/bin/exteplayer3"
+
+
+def player_type(choice="auto"):
+    """The service type to play streams with. auto: exteplayer3 when
+    ServiceApp and exteplayer3 are installed, else the built-in player."""
+    if choice in PLAYERS:
+        return PLAYERS[choice]
+    if os.path.isdir(SERVICEAPP) and os.path.exists(EXTEPLAYER3):
+        return PLAYERS["exteplayer3"]
+    return PLAYERS["builtin"]
+
+
 _KEY = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
 
 
@@ -81,17 +100,17 @@ def for_call(streams, call):
     return None
 
 
-def service_ref(stream):
-    """An Enigma2 service for a stream: GStreamer (4097), URL with its colon
-    escaped, then the name to show."""
+def service_ref(stream, stype=4097):
+    """An Enigma2 service for a stream: the player's service type, URL with
+    its colon escaped, then the name to show."""
     name = stream["name"].replace(":", " ").replace("\n", " ")
-    return "4097:0:1:0:0:0:0:0:0:0:%s:%s" % (stream["url"].replace(":", "%3a"), name)
+    return "%d:0:1:0:0:0:0:0:0:0:%s:%s" % (stype, stream["url"].replace(":", "%3a"), name)
 
 
-def bouquet_text(streams):
+def bouquet_text(streams, stype=4097):
     lines = ["#NAME %s" % BOUQUET_TITLE]
     for s in streams:
-        lines.append("#SERVICE %s" % service_ref(s))
+        lines.append("#SERVICE %s" % service_ref(s, stype))
         lines.append("#DESCRIPTION %s" % s["name"].replace("\n", " "))
     return "\n".join(lines) + "\n"
 
@@ -140,11 +159,11 @@ def load(path=CACHE):
         return [], 0
 
 
-def write_bouquet(streams, folder=BOUQUET_DIR):
+def write_bouquet(streams, folder=BOUQUET_DIR, stype=4097):
     """Write the BATC Live channel list and make sure the TV list includes it.
     Returns True if anything changed (the box then reloads its bouquets)."""
     path = os.path.join(folder, BOUQUET)
-    text = bouquet_text(streams)
+    text = bouquet_text(streams, stype)
     old = None
     if os.path.exists(path):
         with io.open(path, encoding="utf-8") as f:

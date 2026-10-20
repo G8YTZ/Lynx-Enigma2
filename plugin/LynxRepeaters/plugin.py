@@ -47,7 +47,9 @@ def sessionstart(reason, session=None, **kwargs):
     from . import screens
     if screens.cfg.streams.value:
         from . import sync
-        sync.get().start()          # first BATC check a minute after boot
+        s = sync.get()
+        s.rewrite_bouquet()         # with the player in use now (ServiceApp may be new)
+        s.start()                   # first BATC check a minute after boot
     if not screens.cfg.autostart.value:
         return
     from .tuning import _timer

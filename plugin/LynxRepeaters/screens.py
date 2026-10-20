@@ -53,6 +53,11 @@ cfg.osc_3cm = ConfigInteger(default=repeaters.BANDS["3cm"][2], limits=(1, 20000)
 cfg.show_off = ConfigYesNo(default=False)
 cfg.autostart = ConfigYesNo(default=False)
 cfg.streams = ConfigYesNo(default=True)
+cfg.player = ConfigSelection(default="auto", choices=[
+    ("auto", _("Automatic (exteplayer3 if installed)")),
+    ("exteplayer3", _("exteplayer3 (ServiceApp)")),
+    ("gstplayer", _("gstplayer (ServiceApp)")),
+    ("builtin", _("The box's own player"))])
 
 
 def lnb_osc():
@@ -276,7 +281,8 @@ class RepeaterList(Screen):
         e = self._current()
         if not e or not e.get("stream") or self.tuner.busy:
             return
-        self.session.nav.playService(eServiceReference(streams.service_ref(e["stream"])))
+        stype = streams.player_type(cfg.player.value)
+        self.session.nav.playService(eServiceReference(streams.service_ref(e["stream"], stype)))
         self.watching = dict(e, locked_sr_ks=None, via_stream=True)
         self["status"].setText(_("Watching %s on the BATC streamer") % e["call"])
         self.session.openWithCallback(self._bar_closed, LynxBar, self.watching)
@@ -387,6 +393,7 @@ class LynxSettings(ConfigListScreen, Screen):
             getConfigListEntry(_("Show repeaters listed as off air"), cfg.show_off),
             getConfigListEntry(_("Open Lynx at start-up"), cfg.autostart),
             getConfigListEntry(_("BATC live streams (checked hourly)"), cfg.streams),
+            getConfigListEntry(_("Player for streams"), cfg.player),
         ]
         ConfigListScreen.__init__(self, items, session=session)
         self["help"] = Label(_("The LNB supply stays on to power inline preamplifiers. "
@@ -407,9 +414,12 @@ class LynxSettings(ConfigListScreen, Screen):
                               MessageBox.TYPE_ERROR)
             return
         cfg.locator.value = loc
+        player_changed = cfg.player.isChanged()
         for item in self["config"].list:
             item[1].save()
         configfile.save()
+        if player_changed:
+            sync.get().rewrite_bouquet()
         self.close(True)
 
     def cancel(self):

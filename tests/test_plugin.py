@@ -248,6 +248,21 @@ def test_sync_updates_and_keeps_list_on_error(monkeypatch=None):
     fe.run()
     assert len(s.streams) == 3 and calls == [1]                           # last list kept
 
+
+def test_stream_player_choice():
+    import tempfile
+    from LynxRepeaters import streams
+    d = tempfile.mkdtemp()
+    streams.SERVICEAPP, streams.EXTEPLAYER3 = os.path.join(d, "ServiceApp"), os.path.join(d, "exteplayer3")
+    assert streams.player_type("auto") == 4097                 # nothing installed
+    os.mkdir(streams.SERVICEAPP)
+    open(streams.EXTEPLAYER3, "w").close()
+    assert streams.player_type("auto") == 5002
+    assert streams.player_type("builtin") == 4097 and streams.player_type("gstplayer") == 5001
+    s = {"name": "GB3HV", "url": "rtmp://rtmp.batc.org.uk/live/gb3hv"}
+    assert streams.service_ref(s, 5002).startswith("5002:0:1:0:0:0:0:0:0:0:rtmp%3a//")
+    assert "#SERVICE 5002:" in streams.bouquet_text([s], 5002)
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

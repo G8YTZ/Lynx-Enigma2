@@ -34,6 +34,23 @@ class StreamSync(object):
         self.timer, self._tc = _timer(self.due)
         self.poll, self._pc = _timer(self._check)
 
+    @staticmethod
+    def player():
+        try:
+            from .screens import cfg
+            return cfg.player.value
+        except Exception:
+            return "auto"
+
+    def rewrite_bouquet(self):
+        """After the player setting changes: same streams, new service type."""
+        try:
+            if streams.write_bouquet(self.streams, stype=streams.player_type(self.player())):
+                from enigma import eDVBDB
+                eDVBDB.getInstance().reloadBouquets()
+        except Exception as e:
+            print("[LynxRepeaters] BATC channel list: %s" % e)
+
     def start(self, delay_ms=FIRST_DELAY_MS):
         self.timer.start(delay_ms, True)
 
@@ -74,7 +91,7 @@ class StreamSync(object):
         print("[LynxRepeaters] BATC stream list: %d live" % len(value))
         try:
             streams.save(value)
-            if streams.write_bouquet(value):
+            if streams.write_bouquet(value, stype=streams.player_type(self.player())):
                 from enigma import eDVBDB
                 eDVBDB.getInstance().reloadBouquets()
         except Exception as e:
