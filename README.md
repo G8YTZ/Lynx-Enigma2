@@ -29,7 +29,7 @@ Tested on a Zgemma H11S. Other Enigma2 boxes with a DVB-S2 tuner should work the
    ssh root@<box> 'nohup /usr/bin/ofgwrite -r -k -m2 /home/root/flash/h11 > /home/root/flash/ofgwrite.log 2>&1 &'
    ```
    `-m2` writes slot 2 and leaves the others alone. When the screen says it flashed, use the **Multiboot Image Selector** to start slot 2, and work through the setup wizard (tuner A: universal LNB, Astra 19.2E; no channel scan needed).
-2. **Tuner:** Tuner A set for a universal LNB at 19.2E (most boxes come this way). Lynx works out the frequencies; nothing needs changing for 23 cm.
+2. **Tuner:** **Menu, Setup, Tuner Configuration, Tuner A**: configuration mode **Simple**, **Single**, satellite **Astra 1KR/1L/1M/1N (19.2E)**, then save. Check this even after the setup wizard: on OpenATV 8 the wizard can leave tuner A "not configured", and Lynx then cannot tune anything (it will tell you so). Lynx works out the frequencies; nothing else needs changing for 23 cm.
 3. **Time:** **Menu, Setup, System, Time**, time synchronisation by NTP. Lynx also puts the clock right after a power cut, but the box should keep it too.
 4. **Stream players:** Install ServiceApp with gstplayer and exteplayer3, from the box's own feed:
    ```

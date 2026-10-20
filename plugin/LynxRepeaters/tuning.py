@@ -75,10 +75,20 @@ def _set(p, name, value):
         pass                          # field missing on this image: leave it
 
 
+# What to tell someone whose satellite tuner is not set up (OpenATV 8's
+# first-boot wizard left tuner A "not configured" on 20 Oct 2026).
+NO_TUNER = "no tuner set up: Menu, Setup, Tuner Configuration, Tuner A: Simple, Astra 19.2E"
+
+
 def find_tuner(orbpos=repeaters.BOX_ORBPOS):
-    """The first satellite tuner set up for the box's LNB position, else 0."""
+    """The first satellite tuner set up for the box's LNB position; None if
+    the box has tuners but none is set up for it; 0 if Lynx cannot tell."""
     try:
         from Components.NimManager import nimmanager
+    except Exception as e:
+        print("[LynxRepeaters] tuner search: %s" % e)
+        return 0
+    try:
         for slot in nimmanager.nim_slots:
             if not slot.isCompatible("DVB-S"):
                 continue
@@ -86,7 +96,8 @@ def find_tuner(orbpos=repeaters.BOX_ORBPOS):
                 return slot.slot
     except Exception as e:            # an odd tuner set-up must not stop us
         print("[LynxRepeaters] tuner search: %s" % e)
-    return 0
+        return 0
+    return None
 
 
 def transponder(entry, sr_ks, supply_v="13"):
@@ -161,6 +172,10 @@ class RepeaterTuner:
         self.rates = symbol_rates(entry, hunt)
         self.tried = []
         self.feid = find_tuner()
+        self.sr = None
+        if self.feid is None:
+            # Say what is wrong rather than report no signal at every rate.
+            return self.done(None, None, NO_TUNER)
         self.busy = True
         self.session.nav.stopService()      # free the tuner for the scan
         self._next()

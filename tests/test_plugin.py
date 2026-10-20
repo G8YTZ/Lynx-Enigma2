@@ -311,6 +311,24 @@ def test_match_playing():
     assert tuning.match_playing(rows, "1:0:19:283D:3FB:1:C00000:0:0:0:") is None   # BBC One HD
     assert tuning.match_playing(rows, "") is None
 
+
+def test_no_tuner_set_up():
+    import types
+    nm = types.SimpleNamespace(nim_slots=[types.SimpleNamespace(slot=0, isCompatible=lambda t: True)],
+                               getSatListForNim=lambda slot: [])          # tuner A "not configured"
+    comps = types.ModuleType("Components")
+    nimmod = types.ModuleType("Components.NimManager")
+    nimmod.nimmanager = nm
+    sys.modules["Components"], sys.modules["Components.NimManager"] = comps, nimmod
+    try:
+        assert tuning.find_tuner() is None
+        s, log, result, t = _tune("GB3OO")
+        assert result == [(None, None, tuning.NO_TUNER)] and s.nav.stopped == 0 and fe.SCANS == []
+        nm.getSatListForNim = lambda slot: [(192, "Astra", 0)]
+        assert tuning.find_tuner() == 0
+    finally:
+        del sys.modules["Components"], sys.modules["Components.NimManager"]
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):
