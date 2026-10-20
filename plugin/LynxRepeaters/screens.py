@@ -147,6 +147,7 @@ class RepeaterList(Screen):
         self.watching = None              # the entry now on screen, if any
         self.tuner = RepeaterTuner(session, self._progress, self._tuned)
         self.stream_timer, self._st = _timer(self._check_stream)
+        self.bar = None                   # the Lynx bar while it is open
         self.onClose.append(self.stream_timer.stop)
         self["list"] = List([])
         self["where"] = Label()
@@ -279,28 +280,47 @@ class RepeaterList(Screen):
         self.watch(hunt=True)
 
     def _progress(self, text):
+        self._say(text)
+
+    def _say(self, text):
+        """Status line here, and on the Lynx bar while you are watching."""
         self["status"].setText(text)
+        if self.bar:
+            self.bar.notice(text)
+
+    def _show(self, watching):
+        """Open the Lynx bar, or move the open one on to what now plays."""
+        self.watching = watching
+        if self.bar:
+            self.bar.set_entry(watching)
+        else:
+            self.bar = self.session.openWithCallback(self._bar_closed, LynxBar, watching, self)
 
     def _tuned(self, ref, sr_ks, error):
         self["key_red"].setText(_("Close"))
         e = self.tuning
         if not ref:
-            self["status"].setText(_("%s: %s") % (e["call"], error))
+            self._say(_("%s: %s") % (e["call"], error))
             return
-        self.watching = dict(e, locked_sr_ks=sr_ks)
         self["status"].setText(_("Watching %s at %d kS/s") % (e["call"], sr_ks))
-        self.session.openWithCallback(self._bar_closed, LynxBar, self.watching)
+        self._show(dict(e, locked_sr_ks=sr_ks))
 
-    def _step(self, by):
+    def step(self, by):
         """From the Lynx bar's CH+/CH-: the next repeater in the list, by
-        the same route as now where it has one (stream or on air)."""
+        the same route as now where it has one (stream or on air). The bar
+        stays up and changes at once; pressing again moves straight on."""
         was_stream = bool(self.watching and self.watching.get("via_stream"))
         rows = self["list"].list
         if not rows:
             return
+        if self.tuner.busy:
+            self.tuner.cancel()
+        self.stream_timer.stop()
         i = (self["list"].getIndex() + by) % len(rows)
         self["list"].setIndex(i)
         e = rows[i][0]
+        if self.bar:
+            self.bar.set_entry(dict(e, locked_sr_ks=None, pending=True))
         if e.get("stream_only") or (was_stream and e.get("stream")):
             self.watch_stream()
         else:
@@ -310,9 +330,8 @@ class RepeaterList(Screen):
         self.child_closed_at = time.time()
 
     def _bar_closed(self, leave=False):
+        self.bar = None
         self._child_closed()
-        if leave in ("next", "prev"):
-            return self._step(1 if leave == "next" else -1)
         if leave:
             self.close()
 
@@ -346,22 +365,21 @@ class RepeaterList(Screen):
         if not self.chain:
             first = self.tried_players[0]
             self.session.nav.playService(eServiceReference(streams.service_ref(e["stream"], first)))
-            self["status"].setText(_("%s: no picture from any player (sound only?)") % e["call"])
+            self._say(_("%s: no picture from any player (sound only?)") % e["call"])
             return
         self.stype = self.chain.pop(0)
         self.tried_players.append(self.stype)
         self.session.nav.playService(eServiceReference(streams.service_ref(e["stream"], self.stype)))
         self.waited = 0
-        self["status"].setText(_("%s stream: trying %s") % (e["call"], streams.PLAYER_NAMES.get(self.stype, self.stype)))
+        self._say(_("%s stream: trying %s") % (e["call"], streams.PLAYER_NAMES.get(self.stype, self.stype)))
         self.stream_timer.start(STREAM_CHECK_MS, True)
 
     def _check_stream(self):
         e = self.stream_entry
         if live(self.session).get("size"):
-            self.watching = dict(e, locked_sr_ks=None, via_stream=True, player=self.stype)
             self["status"].setText(_("Watching %s on the BATC streamer (%s)") % (
                 e["call"], streams.PLAYER_NAMES.get(self.stype, self.stype)))
-            self.session.openWithCallback(self._bar_closed, LynxBar, self.watching)
+            self._show(dict(e, locked_sr_ks=None, via_stream=True, player=self.stype))
             return
         self.waited += STREAM_CHECK_MS
         if self.waited < STREAM_PICTURE_MS:
@@ -415,9 +433,10 @@ class LynxBar(Screen):
   <eLabel text="CH+/- next   OK hide   EXIT list   RED leave" position="1240,78" size="530,44" font="Regular;22" halign="right" valign="center" foregroundColor="#00909090" backgroundColor="#00141414"/>
 </screen>""")
 
-    def __init__(self, session, entry):
+    def __init__(self, session, entry, owner=None):
         Screen.__init__(self, session)
-        self.entry = entry
+        self.entry, self.owner = entry, owner
+        self.notice_text = None
         big, beside = title_text(entry, {})
         self["call"] = Label(big)
         self["where"] = Label(beside)
@@ -430,7 +449,7 @@ class LynxBar(Screen):
         }, -1)
         # CH+/CH- and the up/down arrows step through Lynx's own list. The
         # channel keys' action names differ between images, so all are bound.
-        nxt, prv = lambda: self.close("next"), lambda: self.close("prev")
+        nxt, prv = lambda: self._zap(1), lambda: self._zap(-1)
         self["zap"] = ActionMap(["DirectionActions", "InfobarChannelSelection", "ChannelSelectBaseActions"], {
             "up": prv, "down": nxt,
             "zapUp": prv, "zapDown": nxt,
@@ -442,6 +461,25 @@ class LynxBar(Screen):
         self.onShown.append(self._start)
         self.onClose.append(self.timer.stop)
 
+    def _zap(self, by):
+        if self.owner:
+            if not self.visible:
+                self.toggle()
+            self.owner.step(by)
+
+    def set_entry(self, entry):
+        """Now showing something else (or about to)."""
+        self.entry, self.notice_text = entry, None
+        if entry.get("pending"):
+            self.notice_text = _("Tuning...")
+        self.update()
+
+    def notice(self, text):
+        """Progress or a problem, shown in place of the technical line until
+        the next repeater plays."""
+        self.notice_text = text
+        self.update()
+
     def _start(self):
         self.update()
         self.timer.start(1000, False)
@@ -449,10 +487,15 @@ class LynxBar(Screen):
     def update(self):
         # Live values every second: what was actually locked and decoded,
         # never the list's idea of FEC or codec.
-        p = live(self.session)
+        waiting = self.entry.get("pending") or self.notice_text
+        p = {} if waiting else live(self.session)
         big, beside = title_text(self.entry, p)
         self["call"].setText(big)
         self["where"].setText(beside)
+        if waiting:
+            self["signal"].setText("")
+            self["tech"].setText(self.notice_text or "")
+            return
         self["signal"].setText(_("BATC stream") if self.entry.get("via_stream") else signal_text(self.session))
         self["tech"].setText(self._tech(p))
 
