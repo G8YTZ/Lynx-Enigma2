@@ -16,6 +16,7 @@
 from __future__ import absolute_import, division, print_function
 
 import re
+import time
 
 from enigma import eServiceReference, getDesktop
 
@@ -83,6 +84,11 @@ def _scale(skin):
     skin = re.sub(r'gFont\("Regular",\s*\d+\)', lambda m: num(m.group(0)), skin)
     return re.sub(r'"itemHeight":\s*\d+', lambda m: num(m.group(0)), skin)
 
+
+# EXIT closes a menu on the key press; the key's release then reaches the
+# list underneath as its own EXIT and closed Lynx. Ignore EXIT this soon after
+# a menu, settings or the Lynx bar closes.
+CHILD_CLOSED_GRACE_S = 0.6
 
 # How long a stream player gets to produce a picture before the next is tried.
 STREAM_PICTURE_MS = 8000
@@ -285,11 +291,17 @@ class RepeaterList(Screen):
         self["status"].setText(_("Watching %s at %d kS/s") % (e["call"], sr_ks))
         self.session.openWithCallback(self._bar_closed, LynxBar, self.watching)
 
+    def _child_closed(self):
+        self.child_closed_at = time.time()
+
     def _bar_closed(self, leave=False):
+        self._child_closed()
         if leave:
             self.close()
 
     def exit(self):
+        if time.time() - getattr(self, "child_closed_at", 0) < CHILD_CLOSED_GRACE_S:
+            return                       # the tail end of the EXIT that closed a menu
         self.stream_timer.stop()
         if self.tuner.busy:
             self.tuner.cancel()
@@ -360,6 +372,7 @@ class RepeaterList(Screen):
         self.session.openWithCallback(self._menu_chosen, ChoiceBox, title=_("Lynx"), list=choices)
 
     def _menu_chosen(self, choice):
+        self._child_closed()
         if choice:
             choice[1]()
 
@@ -367,7 +380,11 @@ class RepeaterList(Screen):
 
     def settings(self):
         if not self.tuner.busy:
-            self.session.openWithCallback(lambda *a: self.refresh(), LynxSettings)
+            self.session.openWithCallback(self._settings_closed, LynxSettings)
+
+    def _settings_closed(self, *args):
+        self._child_closed()
+        self.refresh()
 
 
 class LynxBar(Screen):
