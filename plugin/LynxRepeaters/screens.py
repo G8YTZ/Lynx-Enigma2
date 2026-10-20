@@ -160,7 +160,7 @@ class RepeaterList(Screen):
         self["call"] = Label()
         self["details"] = Label()
         self["status"] = Label()
-        self["key_red"] = StaticText("")          # "Stop" while tuning
+        self["key_red"] = StaticText("")          # see _red()
         self["key_green"] = StaticText(_("Watch"))
         self["key_yellow"] = StaticText("")
         self["live"] = Label()
@@ -298,13 +298,14 @@ class RepeaterList(Screen):
     def _show(self, watching):
         """Open the Lynx bar, or move the open one on to what now plays."""
         self.watching = watching
+        self._red()
         if self.bar:
             self.bar.set_entry(watching)
         else:
             self.bar = self.session.openWithCallback(self._bar_closed, LynxBar, watching, self)
 
     def _tuned(self, ref, sr_ks, error):
-        self["key_red"].setText("")
+        self._red()
         e = self.tuning
         if not ref:
             self._say(_("%s: %s") % (e["call"], error))
@@ -343,6 +344,16 @@ class RepeaterList(Screen):
         if leave:
             self.close()
 
+    def _red(self):
+        """Red: Stop while tuning, Close menu (back to the picture) while
+        something plays, nothing otherwise. It never leaves Lynx."""
+        if self.tuner.busy or self.stream_timer.isActive():
+            self["key_red"].setText(_("Stop"))
+        elif self.watching:
+            self["key_red"].setText(_("Close menu"))
+        else:
+            self["key_red"].setText("")
+
     def _touched(self):
         """Any use of the list: start its 10 s again if something is playing."""
         self.idle_timer.stop()
@@ -364,7 +375,7 @@ class RepeaterList(Screen):
             self.stream_timer.stop()
             self.tuner.cancel()
             self["status"].setText(_("Stopped"))
-            self["key_red"].setText("")
+            self._red()
             return
         if self.watching:
             return self._show(self.watching)     # back to the picture
@@ -410,6 +421,7 @@ class RepeaterList(Screen):
         self.waited = 0
         self._say(_("%s stream: trying %s") % (e["call"], streams.PLAYER_NAMES.get(self.stype, self.stype)))
         self.stream_timer.start(STREAM_CHECK_MS, True)
+        self._red()
 
     def _check_stream(self):
         e = self.stream_entry

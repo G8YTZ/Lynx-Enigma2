@@ -34,7 +34,7 @@ That copies the plugin to `/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeat
 - **Stream only:** Repeaters on the BATC streamer but not on the UK list (foreign ones such as DB0OZ Bremen, say) are at the end of the list; OK or yellow watches them.
 - **BATC Live:** Lynx checks the BATC streamer every hour and keeps a **BATC Live** channel list, so live streams can be watched from the box's ordinary channel list too.
 - While watching, the Lynx bar shows callsign, town, distance and live SNR. **CH+ and CH-** (or up and down) go to the next or previous repeater in Lynx's list, **OK** hides the bar, **EXIT** goes back to the list.
-- **Leaving Lynx:** Only through **MENU, Leave Lynx**, so a stray press never throws you out; what is playing carries on. On the list, EXIT or red stops a tune in progress, or takes you back to the picture; left alone for 10 seconds while something is playing, the list goes back to the picture by itself.
+- **Leaving Lynx:** Only through **MENU, Leave Lynx**, so a stray press never throws you out; what is playing carries on. On the list, EXIT or red (**Stop** or **Close menu**) stops a tune in progress, or takes you back to the picture; left alone for 10 seconds while something is playing, the list goes back to the picture by itself.
 
 For the BATC streams, install ServiceApp on the box first (`opkg install enigma2-plugin-systemplugins-serviceapp gstplayer exteplayer3`): Lynx then plays streams through gstplayer, which is reliable and quick when hopping channels.
 
