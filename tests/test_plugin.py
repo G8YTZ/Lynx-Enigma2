@@ -262,7 +262,7 @@ def test_stream_player_choice():
     os.mkdir(streams.SERVICEAPP)
     open(streams.EXTEPLAYER3, "w").close()
     open(streams.GSTPLAYER, "w").close()
-    assert streams.player_chain("auto") == [5001]              # gstplayer only: Justin, 20 Oct
+    assert streams.player_chain("auto") == [5001, 5002]        # gstplayer then exteplayer3: Justin, 20 Oct
     assert streams.player_type("auto") == 5001
     os.remove(streams.GSTPLAYER)
     assert streams.player_chain("auto") == [5002]

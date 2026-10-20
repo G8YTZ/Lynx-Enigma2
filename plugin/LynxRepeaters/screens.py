@@ -55,7 +55,7 @@ cfg.show_off = ConfigYesNo(default=False)
 cfg.autostart = ConfigYesNo(default=False)
 cfg.streams = ConfigYesNo(default=True)
 cfg.player = ConfigSelection(default="auto", choices=[
-    ("auto", _("Automatic (gstplayer if installed)")),
+    ("auto", _("Automatic (gstplayer, then exteplayer3)")),
     ("exteplayer3", _("exteplayer3 (ServiceApp)")),
     ("gstplayer", _("gstplayer (ServiceApp)")),
     ("builtin", _("The box's own player"))])
@@ -455,12 +455,16 @@ class RepeaterList(Screen):
         self.stype = self.chain.pop(0)
         self.tried_players.append(self.stype)
         self.session.nav.playService(eServiceReference(streams.service_ref(e["stream"], self.stype)))
-        if not self.chain and len(self.tried_players) == 1:
-            # One player only (gstplayer): nothing to fall back to, so show
-            # the bar now rather than wait on a picture size it may not report.
+        watching = dict(e, locked_sr_ks=None, via_stream=True, player=self.stype)
+        if len(self.tried_players) == 1:
+            # The bar goes up at once; a fallback, if needed, happens under it.
             self["status"].setText(_("Watching %s on the BATC streamer (%s)") % (
                 e["call"], streams.PLAYER_NAMES.get(self.stype, self.stype)))
-            return self._show(dict(e, locked_sr_ks=None, via_stream=True, player=self.stype))
+            self._show(watching)
+        else:
+            self.watching = watching
+        if not self.chain:
+            return                       # nothing to fall back to: no need to judge it
         self.waited = 0
         self._say(_("%s stream: trying %s") % (e["call"], streams.PLAYER_NAMES.get(self.stype, self.stype)))
         self.stream_timer.start(STREAM_CHECK_MS, True)
@@ -472,6 +476,8 @@ class RepeaterList(Screen):
             self["status"].setText(_("Watching %s on the BATC streamer (%s)") % (
                 e["call"], streams.PLAYER_NAMES.get(self.stype, self.stype)))
             self._show(dict(e, locked_sr_ks=None, via_stream=True, player=self.stype))
+            if self.bar:
+                self.bar.notice(None)
             return
         self.waited += STREAM_CHECK_MS
         if self.waited < STREAM_PICTURE_MS:
