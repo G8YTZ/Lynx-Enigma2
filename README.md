@@ -17,6 +17,23 @@ A satellite receiver's tuner covers 950 to 2150 MHz, so 23 cm repeaters go strai
 
 LNB power stays on, to feed the small inline preamplifiers that run from it.
 
+## Trying it
+
+From a Mac or Linux PC on the same network as the box:
+
+```
+tools/deploy.sh 192.168.0.164
+```
+
+That copies the plugin to `/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters/` and restarts the GUI. Then open **Plugins, UK ATV Repeaters**:
+
+- **OK or green:** Watch the highlighted repeater. Lynx scans its one transponder and plays the programme it finds.
+- **Yellow:** Watch, trying every common symbol rate (for a listed rate that is wrong).
+- **Blue or MENU:** Settings: your locator, LNB supply (13 or 18 V), the 9 cm and 3 cm LNB oscillators, and whether to show repeaters listed as off air.
+- While watching, the Lynx bar shows callsign, town, distance and live SNR. **OK** hides it, **EXIT** goes back to the list, **red** leaves Lynx with the repeater still on.
+
+Tests (on any PC): `python3 tests/test_plugin.py`
+
 ## Licence
 
 GNU General Public License, version 2 or (at your option) any later version, like Enigma2 itself. See [LICENSE](LICENSE).

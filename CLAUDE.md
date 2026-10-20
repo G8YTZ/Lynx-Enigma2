@@ -8,9 +8,14 @@ British English, metric. No long dashes (use a colon, semicolon, comma, brackets
 
 ## Where it stands (20 Oct 2026)
 
-- `src/repeaters.py`: The arithmetic (band, LNB, box frequency, locator, distance, which outputs a box can show). No Enigma2 imports, so it tests on any PC.
-- `data/repeaters.json`: 31 repeaters, 27 watchable outputs.
-- Next: **the plugin itself.** A "UK ATV Repeaters" screen listing repeaters by distance from the user's locator; OK tunes the chosen one and plays it.
+- `plugin/LynxRepeaters/`: The plugin (plan steps 1 to 4), **written but not yet run on the box.**
+  - `repeaters.py`: The arithmetic (band, LNB, box frequency, locator, distance, list rows). No Enigma2 imports.
+  - `tuning.py`: `RepeaterTuner`: stop the service, `eComponentScan` of one transponder per symbol rate (flags keep the rest of the service list), collect refs from `newService`, play the first TV type; watchdog 20 s per rate. `signal()` reads SNR from `frontendInfo().getFrontendStatus()`.
+  - `screens.py`: `RepeaterList` (OK/green watch, yellow hunt all rates, blue settings), `LynxBar` (bottom strip while watching), `LynxSettings` (`config.plugins.lynxrepeaters`). Skins drawn at 1920x1080, scaled by `_scale()`.
+  - `plugin.py`: Descriptor, Plugins menu and Extensions menu.
+- `data/repeaters.json`: 31 repeaters, 27 watchable outputs. `tools/deploy.sh` copies it beside the plugin.
+- `tests/test_plugin.py`: List and tuner logic against stand-ins for Enigma2 (`tests/fake_enigma.py`).
+- Next: **First run on the box** (`tools/deploy.sh`, then watch GB3OO; read `/home/root/logs/` or run `init 4; enigma2` over SSH for the traceback if it fails). Things only the box can confirm: `eComponentScan` signal hookup on this OpenATV, that `newService` fires on a rescan of a known transponder, the SNR key, skin look. Then plan step 5.
 
 ## The test box
 
@@ -53,4 +58,4 @@ Oscillators are per-band settings. 13 cm (GB3TZ) is out. Analogue outputs and an
 4. Settings: locator, per-band LNB oscillator, LNB voltage (13/18 V).
 5. List update from GitHub; then an installable `.ipk`, then a ready-made box image to sell. Justin would be the support desk: keep set-up minimal.
 
-Test by copying files to the box over SSH (`/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters/`) and restarting the GUI (`init 4; init 3`, or the OpenWebif restart).
+Test by running `tools/deploy.sh [box]` on Justin's Mac: it copies the plugin and list to `/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters/` and restarts the GUI (`init 4; init 3`).

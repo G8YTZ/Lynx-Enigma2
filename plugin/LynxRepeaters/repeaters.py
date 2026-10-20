@@ -52,7 +52,16 @@ MIN_SR_KS = 1000
 # Tried in turn when a repeater's symbol rate is not known.
 COMMON_SR_KS = (2000, 1500, 1000, 4000, 1300, 3000)
 
-DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "repeaters.json")
+# The satellite position tuner A's universal LNB is set up for (Astra 19.2E).
+BOX_ORBPOS = 192
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+# On the box the list sits beside this file; in the repo it is in data/.
+DATA_PATHS = (
+    os.path.join(_HERE, "repeaters.json"),
+    os.path.join(_HERE, "..", "..", "data", "repeaters.json"),
+)
+DATA = next((p for p in DATA_PATHS if os.path.exists(p)), DATA_PATHS[-1])
 
 
 def band_of(freq_mhz: float) -> str | None:
@@ -125,4 +134,51 @@ def watchable(repeaters: list[dict], lnb_osc: dict | None = None) -> list[dict]:
                 continue
             out.append(dict(r, output=o, band=band, lnb_osc_mhz=osc,
                             box_khz=box_frequency_khz(o["freq_mhz"], osc)))
+    return out
+
+
+def valid_locator(loc: str) -> bool:
+    """A 4 or 6 character Maidenhead locator, such as JO01 or JO01AJ."""
+    loc = (loc or "").strip().upper()
+    if len(loc) not in (4, 6):
+        return False
+    ok = "A" <= loc[0] <= "R" and "A" <= loc[1] <= "R" and loc[2:4].isdigit()
+    return ok and (len(loc) == 4 or ("A" <= loc[4] <= "X" and "A" <= loc[5] <= "X"))
+
+
+def position(r: dict) -> tuple[tuple[float, float] | None, bool]:
+    """Where a repeater is, and whether that is only the middle of its
+    locator square (no lat/lon in the list)."""
+    if r.get("lat") is not None and r.get("lon") is not None:
+        return (r["lat"], r["lon"]), False
+    return locator_to_latlon(r.get("locator", "")), True
+
+
+def note(entry: dict) -> str:
+    """The one-line warning for a list row, or an empty string."""
+    status = entry.get("status", "on")
+    if status == "off":
+        return "Off air"
+    if status != "on":
+        return status[:1].upper() + status[1:]
+    if entry["band"] != "23cm":
+        return "Needs " + BANDS[entry["band"]][3]
+    return ""
+
+
+def rows(repeaters: list[dict], home: tuple[float, float] | None = None,
+         lnb_osc: dict | None = None, show_off: bool = False) -> list[dict]:
+    """The list as the plugin shows it: one entry per watchable output, with
+    distance (km, or None without a home position), nearest first.
+    show_off keeps repeaters ETCC lists as off air."""
+    out = []
+    for e in watchable(repeaters, lnb_osc):
+        if not show_off and e.get("status") == "off":
+            continue
+        pos, approx = position(e)
+        e["km"] = distance_km(home, pos) if home and pos else None
+        e["approx"] = approx
+        e["note"] = note(e)
+        out.append(e)
+    out.sort(key=lambda e: (e["km"] is None, e["km"] or 0, e["call"], e["output"]["freq_mhz"]))
     return out
