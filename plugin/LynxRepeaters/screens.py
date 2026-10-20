@@ -61,6 +61,27 @@ cfg.player = ConfigSelection(default="auto", choices=[
     ("builtin", _("The box's own player"))])
 
 
+def video_signs(session):
+    """Everything the box offers that might show video is running, for the
+    log: the service's own info and the decoder's /proc entries."""
+    out = {}
+    try:
+        from enigma import iServiceInformation as I
+        info = session.nav.getCurrentService().info()
+        for name in ("sVideoWidth", "sVideoHeight", "sVideoType", "sVideoPID", "sAspect", "sFrameRate", "sProgressive"):
+            if hasattr(I, name):
+                out[name] = info.getInfo(getattr(I, name))
+    except Exception as e:
+        out["info"] = str(e)
+    for f in ("xres", "yres", "framerate", "aspect"):
+        try:
+            with open("/proc/stb/vmpeg/0/" + f) as fh:
+                out["vmpeg." + f] = fh.read().strip()
+        except (IOError, OSError):
+            pass
+    return out
+
+
 def lnb_osc():
     return {"23cm": 0, "9cm": cfg.osc_9cm.value, "3cm": cfg.osc_3cm.value}
 
@@ -94,9 +115,8 @@ CHILD_CLOSED_GRACE_S = 0.6
 # untouched, back to the picture and the Lynx bar (Justin's idea).
 LIST_IDLE_MS = 10000
 
-# How long a stream player gets to produce a picture before the next is tried.
-STREAM_PICTURE_MS = 8000
-STREAM_CHECK_MS = 500
+# Seconds of video diagnostics logged at the start of each stream.
+STREAM_DIAG_S = 10
 
 RED = "#00d0021b"
 PANEL = "#00141414"
@@ -150,7 +170,9 @@ class RepeaterList(Screen):
         self.old_service = self._playing()
         self.watching = None              # the entry now on screen, if any
         self.tuner = RepeaterTuner(session, self._progress, self._tuned)
-        self.stream_timer, self._st = _timer(self._check_stream)
+        self.stream_timer, self._st = _timer(lambda: None)   # no longer started; kept for the checks
+        self.diag_timer, self._dt = _timer(self._diag)
+        self.onClose.append(self.diag_timer.stop)
         self.bar = None                   # the Lynx bar while it is open
         self.idle_timer, self._it = _timer(self._idle)
         self.hidden = False
@@ -438,52 +460,39 @@ class RepeaterList(Screen):
         if not e or not e.get("stream") or self.tuner.busy:
             return
         self.stream_entry = e
-        self.chain = streams.player_chain(cfg.player.value)
-        self.tried_players = []
-        self._next_player()
+        self.players = streams.player_chain(cfg.player.value)
+        self.player_i = 0
+        self._play_stream()
 
-    # A player that gives sound but no picture is still "playing", so judge
-    # by whether the decoder reports a picture size.
+    # gstplayer shows the picture but reports no picture size (20 Oct 2026),
+    # so Lynx cannot tell by itself when a player has failed. The stream
+    # stays on the first player; yellow on the Lynx bar swaps players. For
+    # the first 10 s Lynx logs every sign of video, to find a test it could
+    # use to swap by itself.
 
-    def _next_player(self):
+    def _play_stream(self):
         e = self.stream_entry
-        if not self.chain:
-            first = self.tried_players[0]
-            self.session.nav.playService(eServiceReference(streams.service_ref(e["stream"], first)))
-            self._say(_("%s: no picture from any player (sound only?)") % e["call"])
-            return
-        self.stype = self.chain.pop(0)
-        self.tried_players.append(self.stype)
+        self.stype = self.players[self.player_i]
         self.session.nav.playService(eServiceReference(streams.service_ref(e["stream"], self.stype)))
-        watching = dict(e, locked_sr_ks=None, via_stream=True, player=self.stype)
-        if len(self.tried_players) == 1:
-            # The bar goes up at once; a fallback, if needed, happens under it.
-            self["status"].setText(_("Watching %s on the BATC streamer (%s)") % (
-                e["call"], streams.PLAYER_NAMES.get(self.stype, self.stype)))
-            self._show(watching)
-        else:
-            self.watching = watching
-        if not self.chain:
-            return                       # nothing to fall back to: no need to judge it
-        self.waited = 0
-        self._say(_("%s stream: trying %s") % (e["call"], streams.PLAYER_NAMES.get(self.stype, self.stype)))
-        self.stream_timer.start(STREAM_CHECK_MS, True)
-        self._red()
+        name = streams.PLAYER_NAMES.get(self.stype, self.stype)
+        self["status"].setText(_("Watching %s on the BATC streamer (%s)") % (e["call"], name))
+        self._show(dict(e, locked_sr_ks=None, via_stream=True, player=self.stype,
+                        other_player=len(self.players) > 1))
+        self.diag_left = STREAM_DIAG_S
+        self.diag_timer.start(1000, True)
 
-    def _check_stream(self):
-        e = self.stream_entry
-        if live(self.session).get("size"):
-            self["status"].setText(_("Watching %s on the BATC streamer (%s)") % (
-                e["call"], streams.PLAYER_NAMES.get(self.stype, self.stype)))
-            self._show(dict(e, locked_sr_ks=None, via_stream=True, player=self.stype))
-            if self.bar:
-                self.bar.notice(None)
+    def other_player(self):
+        """Yellow on the Lynx bar while on a stream: the next player."""
+        if not (self.watching and self.watching.get("via_stream")) or len(getattr(self, "players", ())) < 2:
             return
-        self.waited += STREAM_CHECK_MS
-        if self.waited < STREAM_PICTURE_MS:
-            self.stream_timer.start(STREAM_CHECK_MS, True)
-        else:
-            self._next_player()
+        self.player_i = (self.player_i + 1) % len(self.players)
+        self._play_stream()
+
+    def _diag(self):
+        print("[LynxRepeaters] video check %s: %s" % (self.stype, video_signs(self.session)))
+        self.diag_left -= 1
+        if self.diag_left > 0:
+            self.diag_timer.start(1000, True)
 
     # MENU: every choice in one place
 
@@ -531,7 +540,7 @@ class LynxBar(Screen):
   <widget name="where" position="620,8" size="620,70" font="Regular;36" valign="center" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
   <widget name="signal" position="1240,8" size="530,70" font="Regular;40" halign="right" valign="center" foregroundColor="#00ffd200" backgroundColor="#00141414"/>
   <widget name="tech" position="40,78" size="1200,44" font="Regular;28" valign="center" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
-  <eLabel text="CH+/- next   OK hide   EXIT list" position="1240,78" size="530,44" font="Regular;22" halign="right" valign="center" foregroundColor="#00909090" backgroundColor="#00141414"/>
+  <widget name="hint" position="1240,78" size="530,44" font="Regular;22" halign="right" valign="center" foregroundColor="#00909090" backgroundColor="#00141414"/>
 </screen>""")
 
     def __init__(self, session, entry, owner=None):
@@ -543,8 +552,10 @@ class LynxBar(Screen):
         self["where"] = Label(beside)
         self["tech"] = Label(self._tech({}))
         self["signal"] = Label()
+        self["hint"] = Label()
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
             "ok": self.toggle,
+            "yellow": lambda: self.owner and self.owner.other_player(),
             "cancel": lambda: self.close(False),
         }, -1)
         # CH+/CH- and the up/down arrows step through Lynx's own list. The
@@ -587,6 +598,8 @@ class LynxBar(Screen):
     def update(self):
         # Live values every second: what was actually locked and decoded,
         # never the list's idea of FEC or codec.
+        self["hint"].setText(_("CH+/- next  OK hide  EXIT list  YELLOW player")
+                             if self.entry.get("other_player") else _("CH+/- next   OK hide   EXIT list"))
         waiting = self.entry.get("pending") or self.notice_text
         p = {} if waiting else live(self.session)
         big, beside = title_text(self.entry, p)

@@ -36,7 +36,7 @@ That copies the plugin to `/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeat
 - While watching, the Lynx bar shows callsign, town, distance and live SNR. **CH+ and CH-** (or up and down) go to the next or previous repeater in Lynx's list, **OK** hides the bar, **EXIT** goes back to the list.
 - **Leaving Lynx:** Only through **MENU, Leave Lynx**, so a stray press never throws you out; what is playing carries on. On the list, EXIT or red (**Stop** or **Close menu**) stops a tune in progress, or takes you back to the picture; left alone for 10 seconds while something is playing, the list goes back to the picture by itself.
 
-For the BATC streams, install ServiceApp on the box first (`opkg install enigma2-plugin-systemplugins-serviceapp gstplayer exteplayer3`): Lynx then plays streams through gstplayer, switching to exteplayer3 if there is no picture within 8 seconds.
+For the BATC streams, install ServiceApp on the box first (`opkg install enigma2-plugin-systemplugins-serviceapp gstplayer exteplayer3`): Lynx then plays streams through gstplayer; if a stream gives sound but no picture, **yellow** on the Lynx bar swaps to exteplayer3 (and back).
 
 Tests (on any PC): `python3 tests/test_plugin.py`
 
