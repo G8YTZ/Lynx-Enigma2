@@ -30,7 +30,7 @@ from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 
 from . import repeaters
-from .tuning import RepeaterTuner, _timer, signal_text
+from .tuning import RepeaterTuner, _timer, live, signal_text, tech_text
 
 try:
     _
@@ -190,6 +190,7 @@ class RepeaterList(Screen):
         mode = o.get("mode") if o.get("mode") not in (None, "digital") else _("Digital")
         lines.append("%s  %s  %s" % (mode, ("%d kS/s" % o["sr_ks"]) if o.get("sr_ks") else _("symbol rate not known"),
                                      ("FEC " + o["fec"]) if o.get("fec") else ""))
+        lines.append(_("(as listed; the Lynx bar shows what is received)"))
         if o.get("codec"):
             lines.append(o["codec"])
         lines.append("")
@@ -275,10 +276,7 @@ class LynxBar(Screen):
         self["call"] = Label(entry["call"])
         km = "" if entry["km"] is None else "   %s%d km" % ("~" if entry["approx"] else "", round(entry["km"]))
         self["where"] = Label(entry["town"] + km)
-        self["tech"] = Label("%g MHz   %d kS/s%s%s" % (
-            o["freq_mhz"], entry["locked_sr_ks"],
-            ("   FEC " + o["fec"]) if o.get("fec") else "",
-            ("   " + o["codec"]) if o.get("codec") else ""))
+        self["tech"] = Label(tech_text(o["freq_mhz"], {}, entry["locked_sr_ks"]))
         self["signal"] = Label()
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
             "ok": self.toggle,
@@ -295,7 +293,11 @@ class LynxBar(Screen):
         self.timer.start(1000, False)
 
     def update(self):
+        # Live values every second: what was actually locked and decoded,
+        # never the list's idea of FEC or codec.
         self["signal"].setText(signal_text(self.session))
+        self["tech"].setText(tech_text(self.entry["output"]["freq_mhz"], live(self.session),
+                                       self.entry["locked_sr_ks"]))
 
     def toggle(self):
         self.visible = not self.visible

@@ -118,6 +118,37 @@ def test_dvb_s_and_9cm():
     assert fe.SCANS[0][2].frequency == (5150 - 3404 + 9750) * 1000
 
 
+
+class FakeFE:
+    def getAll(self, original):
+        assert original is False
+        return {"symbol_rate": 1000000, "system": 1, "modulation": 1, "fec_inner": 3}
+
+
+class FakeInfo:
+    def getInfo(self, what):
+        return {"w": 1920, "h": 1080}[what]
+
+
+class FakeService:
+    def frontendInfo(self):
+        return FakeFE()
+
+    def info(self):
+        return FakeInfo()
+
+
+def test_live_tech_line():
+    import types
+    fe.mod.iServiceInformation = types.SimpleNamespace(sVideoWidth="w", sVideoHeight="h")
+    s = Session()
+    s.nav.getCurrentService = lambda: FakeService()
+    p = tuning.live(s)                         # no Tools.Transponder here: fallbacks
+    assert p == {"sr_ks": 1000, "system": "DVB-S2", "modulation": "QPSK", "fec": "3/4", "size": (1920, 1080)}
+    assert tuning.tech_text(1312, p) == "1312 MHz   1000 kS/s   DVB-S2 QPSK   FEC 3/4   1920x1080"
+    assert tuning.tech_text(1312, {}, 2000) == "1312 MHz   2000 kS/s"
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

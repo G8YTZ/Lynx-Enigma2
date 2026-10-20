@@ -256,3 +256,75 @@ def signal_text(session):
     if db is not None:
         return _("SNR %.1f dB") % db
     return _("Signal %d%%") % q if q is not None else _("Locked")
+
+
+# Fallbacks for when Tools.Transponder is missing: the enums Enigma2 uses.
+FEC_NAMES = {1: "1/2", 2: "2/3", 3: "3/4", 4: "5/6", 5: "7/8", 6: "8/9",
+             7: "3/5", 8: "4/5", 9: "9/10"}
+SYSTEM_NAMES = {0: "DVB-S", 1: "DVB-S2"}
+MODULATION_NAMES = {1: "QPSK", 2: "8PSK", 4: "16APSK", 5: "32APSK"}
+
+
+def _named(human, raw, key, table):
+    v = human.get(key)
+    if v and str(v).lower() not in ("auto", "unknown", "none", "n/a"):
+        return str(v)
+    return table.get(raw.get(key))
+
+
+def live(session):
+    """What the tuner and decoder report for what is playing, rather than
+    what the list says: sr_ks, system, modulation, fec, and the picture
+    size as (width, height). Anything not reported is left out."""
+    out = {}
+    try:
+        service = session.nav.getCurrentService()
+    except Exception:
+        return out
+    if not service:
+        return out
+    try:
+        fe = service.frontendInfo()
+        raw = (fe and fe.getAll(False)) or {}    # False: as locked, not as asked
+    except Exception:
+        raw = {}
+    try:
+        from Tools.Transponder import ConvertToHumanReadable
+        human = ConvertToHumanReadable(raw) if raw else {}
+    except Exception:
+        human = {}
+    sr = raw.get("symbol_rate")
+    if isinstance(sr, Integral) and sr > 0:
+        out["sr_ks"] = int(round(sr / 1000.0))
+    for key, table in (("system", SYSTEM_NAMES), ("modulation", MODULATION_NAMES),
+                       ("fec_inner", FEC_NAMES)):
+        v = _named(human, raw, key, table)
+        if v:
+            out[key.replace("_inner", "")] = v
+    try:
+        from enigma import iServiceInformation
+        info = service.info()
+        w = info.getInfo(iServiceInformation.sVideoWidth)
+        h = info.getInfo(iServiceInformation.sVideoHeight)
+        if 0 < w < 10000 and 0 < h < 10000:
+            out["size"] = (w, h)
+    except Exception:
+        pass
+    return out
+
+
+def tech_text(freq_mhz, live_params, fallback_sr_ks=None):
+    """The Lynx bar's second line, from live values only."""
+    p = live_params
+    parts = ["%g MHz" % freq_mhz]
+    sr = p.get("sr_ks") or fallback_sr_ks
+    if sr:
+        parts.append("%d kS/s" % sr)
+    mode = " ".join(x for x in (p.get("system"), p.get("modulation")) if x)
+    if mode:
+        parts.append(mode)
+    if p.get("fec"):
+        parts.append("FEC " + p["fec"])
+    if p.get("size"):
+        parts.append("%dx%d" % p["size"])
+    return "   ".join(parts)
