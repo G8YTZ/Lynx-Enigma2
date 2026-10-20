@@ -30,7 +30,7 @@ from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 
 from . import repeaters
-from .tuning import RepeaterTuner, _timer, live, signal_text, tech_text
+from .tuning import RepeaterTuner, _timer, live, signal_text, tech_text, title_text
 
 try:
     _
@@ -262,8 +262,8 @@ class LynxBar(Screen):
     skin = _scale("""
 <screen name="LynxBar" position="60,930" size="1800,130" backgroundColor="#00141414" flags="wfNoBorder">
   <eLabel position="0,0" size="12,130" backgroundColor="#00d0021b"/>
-  <widget name="call" position="40,8" size="300,70" font="Regular;54" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
-  <widget name="where" position="340,8" size="900,70" font="Regular;36" valign="center" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
+  <widget name="call" position="40,8" size="560,70" font="Regular;54" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
+  <widget name="where" position="620,8" size="620,70" font="Regular;36" valign="center" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
   <widget name="signal" position="1240,8" size="530,70" font="Regular;40" halign="right" valign="center" foregroundColor="#00ffd200" backgroundColor="#00141414"/>
   <widget name="tech" position="40,78" size="1200,44" font="Regular;28" valign="center" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
   <eLabel text="OK hide   EXIT list   RED leave Lynx" position="1240,78" size="530,44" font="Regular;24" halign="right" valign="center" foregroundColor="#00909090" backgroundColor="#00141414"/>
@@ -273,9 +273,9 @@ class LynxBar(Screen):
         Screen.__init__(self, session)
         self.entry = entry
         o = entry["output"]
-        self["call"] = Label(entry["call"])
-        km = "" if entry["km"] is None else "   %s%d km" % ("~" if entry["approx"] else "", round(entry["km"]))
-        self["where"] = Label(entry["town"] + km)
+        big, beside = title_text(entry, {})
+        self["call"] = Label(big)
+        self["where"] = Label(beside)
         self["tech"] = Label(tech_text(o["freq_mhz"], {}, entry["locked_sr_ks"]))
         self["signal"] = Label()
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
@@ -295,9 +295,12 @@ class LynxBar(Screen):
     def update(self):
         # Live values every second: what was actually locked and decoded,
         # never the list's idea of FEC or codec.
+        p = live(self.session)
+        big, beside = title_text(self.entry, p)
+        self["call"].setText(big)
+        self["where"].setText(beside)
         self["signal"].setText(signal_text(self.session))
-        self["tech"].setText(tech_text(self.entry["output"]["freq_mhz"], live(self.session),
-                                       self.entry["locked_sr_ks"]))
+        self["tech"].setText(tech_text(self.entry["output"]["freq_mhz"], p, self.entry["locked_sr_ks"]))
 
     def toggle(self):
         self.visible = not self.visible

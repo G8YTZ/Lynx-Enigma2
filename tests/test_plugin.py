@@ -167,6 +167,15 @@ def test_echoing_driver_shows_no_mode():
     assert tuning.tech_text(1312, p) == "1312 MHz   1000 kS/s   1920x1080"
 
 
+
+def test_title_text():
+    e = {"call": "GB3EN", "town": "North London", "km": 25.4, "approx": False}
+    assert tuning.title_text(e, {}) == ("GB3EN", "North London   25 km")
+    assert tuning.title_text(e, {"name": "gb3en"}) == ("GB3EN", "North London   25 km")
+    assert tuning.title_text(e, {"name": "GB3EN Test Card"}) == ("GB3EN Test Card", "North London   25 km")
+    assert tuning.clean_name("\x86GB3EN\x87 ") == "GB3EN"
+    assert tuning.title_text(e, {"name": "G8YTZ Lynx-Tx"}) == ("G8YTZ Lynx-Tx", "GB3EN   North London   25 km")
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

@@ -17,6 +17,7 @@ rates in turn until one gives a service.
 """
 from __future__ import absolute_import, division, print_function
 
+import sys
 from numbers import Integral
 
 from enigma import eComponentScan, eDVBFrontendParametersSatellite, eServiceReference, eTimer
@@ -274,11 +275,22 @@ def _named(human, raw, key, table):
 
 _logged = []
 
+# DVB emphasis on/off control codes some encoders put in service names.
+# Python 2 sees the UTF-8 bytes; Python 3 sees the characters.
+_EMPHASIS = (("\xc2\x86", "\xc2\x87") if sys.version_info[0] < 3 else ("\x86", "\x87"))
+
+
+def clean_name(name):
+    for c in _EMPHASIS:
+        name = name.replace(c, "")
+    return name.strip()
+
 
 def live(session):
     """What the tuner and decoder report for what is playing, rather than
-    what the list says: sr_ks, system, modulation, fec, and the picture
-    size as (width, height). Anything not reported is left out."""
+    what the list says: the broadcast name, sr_ks, system, modulation,
+    fec, and the picture size as (width, height). Anything not reported
+    is left out."""
     out = {}
     try:
         service = session.nav.getCurrentService()
@@ -319,6 +331,14 @@ def live(session):
         if v:
             out[key.replace("_inner", "")] = v
     try:
+        info = service.info()
+        name = info and info.getName()
+        if name:
+            # The name the repeater transmits (from its SDT), live.
+            out["name"] = clean_name(name)
+    except Exception:
+        pass
+    try:
         from enigma import iServiceInformation
         info = service.info()
         w = info.getInfo(iServiceInformation.sVideoWidth)
@@ -345,3 +365,16 @@ def tech_text(freq_mhz, live_params, fallback_sr_ks=None):
     if p.get("size"):
         parts.append("%dx%d" % p["size"])
     return "   ".join(parts)
+
+
+def title_text(entry, live_params):
+    """The Lynx bar's two top fields: (large, beside it). The broadcast name
+    goes large when there is one; the list's callsign, town and distance
+    go beside it, the callsign dropped if the broadcast name already says it."""
+    km = "" if entry.get("km") is None else "   %s%d km" % ("~" if entry.get("approx") else "", round(entry["km"]))
+    name = live_params.get("name") or ""
+    if not name or name.upper() == entry["call"].upper():
+        return entry["call"], entry["town"] + km
+    if entry["call"].upper() in name.upper():
+        return name, entry["town"] + km
+    return name, "%s   %s%s" % (entry["call"], entry["town"], km)
