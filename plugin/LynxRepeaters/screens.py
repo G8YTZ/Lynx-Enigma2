@@ -34,6 +34,8 @@ from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 
 from . import repeaters, streams, sync
+from .eye import closure as eye_closure, draw as eye_draw, margin_db
+from .tuning import level, signal
 from .tuning import RepeaterTuner, _timer, live, match_playing, signal_text, tech_text, title_text
 
 try:
@@ -95,8 +97,23 @@ def home():
 
 # Skins are drawn for 1920 x 1080 and scaled to the box's output.
 
+def _factor():
+    return getDesktop(0).size().width() / 1920.0
+
+
+try:                                   # Enigma2's drawing surface, for the eye
+    from Components.Sources.CanvasSource import CanvasSource
+except ImportError:
+    CanvasSource = None
+
+EYE = 110                              # the eye's size at 1920 x 1080
+LEVEL_FLOOR_DBM = -77                  # where the H11S's level reading stops falling
+EYE_MS = 250                           # four looks a second: quick enough to point with
+EYE_EASE = 0.35                        # how far it moves towards a new reading each look
+
+
 def _scale(skin):
-    f = getDesktop(0).size().width() / 1920.0
+    f = _factor()
     if abs(f - 1) < 0.01:
         return skin
     n = lambda m: str(int(round(int(m.group(0)) * f)))
@@ -539,10 +556,11 @@ class LynxBar(Screen):
 <screen name="LynxBar" position="60,930" size="1800,130" backgroundColor="#00141414" flags="wfNoBorder">
   <eLabel position="0,0" size="12,130" backgroundColor="#00d0021b"/>
   <widget name="call" position="40,8" size="560,70" font="Regular;54" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
-  <widget name="where" position="620,8" size="620,70" font="Regular;36" valign="center" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
-  <widget name="signal" position="1240,8" size="530,70" font="Regular;40" halign="right" valign="center" foregroundColor="#00ffd200" backgroundColor="#00141414"/>
+  <widget name="where" position="620,8" size="520,70" font="Regular;36" valign="center" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
+  <widget name="signal" position="1140,8" size="510,70" font="Regular;36" halign="right" valign="center" foregroundColor="#00ffd200" backgroundColor="#00141414"/>
   <widget name="tech" position="40,78" size="1200,44" font="Regular;28" valign="center" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
-  <widget name="hint" position="1240,78" size="530,44" font="Regular;22" halign="right" valign="center" foregroundColor="#00909090" backgroundColor="#00141414"/>
+  <widget name="hint" position="1240,78" size="410,44" font="Regular;20" halign="right" valign="center" foregroundColor="#00909090" backgroundColor="#00141414"/>
+""" + ('<widget source="eye" render="Canvas" position="1670,10" size="110,110" backgroundColor="#00141414"/>' if CanvasSource else "") + """
 </screen>""")
 
     def __init__(self, session, entry, owner=None):
@@ -573,6 +591,14 @@ class LynxBar(Screen):
         self.timer, self._tc = _timer(self.update)
         self.onShown.append(self._start)
         self.onClose.append(self.timer.stop)
+        # The magic eye: SNR above what the locked MODCOD needs.
+        self.modcod = {}
+        self.eye_amount, self.eye_drawn = 0.0, None
+        if CanvasSource:
+            self["eye"] = CanvasSource()
+            self.eye_px = int(round(EYE * _factor()))
+            self.eye_timer, self._et = _timer(self._eye)
+            self.onClose.append(self.eye_timer.stop)
 
     def _zap(self, by):
         if self.owner:
@@ -596,6 +622,31 @@ class LynxBar(Screen):
     def _start(self):
         self.update()
         self.timer.start(1000, False)
+        if CanvasSource:
+            self.eye_timer.start(EYE_MS, False)
+
+    def _on_air(self):
+        return not (self.entry.get("via_stream") or self.entry.get("pending") or self.notice_text)
+
+    def _margin(self, db):
+        return margin_db(db, self.modcod.get("modulation"), self.modcod.get("fec"))
+
+    def _eye(self):
+        if not self.visible:
+            return
+        db, q, locked = signal(self.session) if self._on_air() else (None, None, False)
+        target = eye_closure(locked, db, self._margin(db))
+        self.eye_amount += EYE_EASE * (target - self.eye_amount)
+        lit = bool(locked)
+        key = (lit, round(self.eye_amount, 2))
+        if key == self.eye_drawn:
+            return                        # nothing visible has changed
+        self.eye_drawn = key
+        eye = self["eye"]
+        eye.clear()
+        for x, y, w, h, colour in eye_draw(self.eye_px, self.eye_amount, lit):
+            eye.fill(x, y, w, h, colour)
+        eye.flush()
 
     def update(self):
         # Live values every second: what was actually locked and decoded,
@@ -604,6 +655,7 @@ class LynxBar(Screen):
                              if self.entry.get("other_player") else _("CH+/- next   OK hide   EXIT list"))
         waiting = self.entry.get("pending") or self.notice_text
         p = {} if waiting else live(self.session)
+        self.modcod = p
         big, beside = title_text(self.entry, p)
         self["call"].setText(big)
         self["where"].setText(beside)
@@ -611,7 +663,11 @@ class LynxBar(Screen):
             self["signal"].setText("")
             self["tech"].setText(self.notice_text or "")
             return
-        self["signal"].setText(_("BATC stream") if self.entry.get("via_stream") else signal_text(self.session))
+        if self.entry.get("via_stream"):
+            self["signal"].setText(_("BATC stream"))
+        else:
+            db = signal(self.session)[0]
+            self["signal"].setText(signal_text(self.session, self._margin(db)))
         self["tech"].setText(self._tech(p))
 
     def _tech(self, p):
@@ -620,8 +676,16 @@ class LynxBar(Screen):
                                (["%dx%d" % p["size"]] if p.get("size") else []))
         # The supply Lynx puts up the cable (set by polarisation): real, unlike
         # the driver's echoed system, roll-off and FEC on this box.
-        return "%s   LNB %s V" % (tech_text(self.entry["output"]["freq_mhz"], p, self.entry["locked_sr_ks"]),
+        text = "%s   LNB %s V" % (tech_text(self.entry["output"]["freq_mhz"], p, self.entry["locked_sr_ks"]),
                                  cfg.supply.value)
+        dbm = level(self.session)
+        if dbm is None:
+            return text
+        if dbm <= LEVEL_FLOOR_DBM:
+            # The tuner is at full gain: it cannot tell any lower (H11S,
+            # 21 Oct 2026: 20 % at both -39 and -40 dB). The eye still can.
+            return text + "   " + _("below %d dBm") % LEVEL_FLOOR_DBM
+        return text + "   %.0f dBm" % dbm
 
     def toggle(self):
         self.visible = not self.visible

@@ -13,7 +13,7 @@ A satellite receiver's tuner covers 950 to 2150 MHz, so 23 cm repeaters go strai
 - **Every UK repeater, ready to tune:** From the RSGB ETCC list (frequencies, locations, status) and the BATC wiki (symbol rates), sorted by distance from you.
 - **Pick and watch:** Choose a repeater and the box finds its programme by itself; no channel numbers, and it still works if a repeater changes its service name or IDs.
 - **BATC streams:** Repeaters streaming on the BATC streamer are marked LIVE and play over the internet, so you can see a repeater beyond radio range, or check it is on before pointing an antenna.
-- **Lynx on screen:** The broadcast name, callsign, town, distance, frequency, symbol rate, picture size, LNB supply and live SNR.
+- **Lynx on screen:** The broadcast name, callsign, town, distance, frequency, symbol rate, picture size and LNB supply, with the real modulation and FEC, signal level, SNR and margin read from the demodulator, and a **magic eye** for pointing antennas.
 - **Other bands** (3.4 and 10 GHz) through a suitable LNB, each with its own local oscillator.
 
 LNB power stays on, to feed the small inline preamplifiers that run from it.
@@ -86,6 +86,7 @@ rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters; /sbin/init 4; s
 - **Stream only:** Repeaters on the BATC streamer but not on the UK list (DB0OZ Bremen, say) are at the end; OK or yellow watches them.
 
 **The Lynx bar,** while watching:
+- **The magic eye:** Its dark wedge narrows as the signal improves above what the received modulation and FEC need, and closes at about 10 dB in hand. Wide open means you are at the edge; dark means no lock. Beside the SNR the margin shows as a figure, such as +8.0, and the level shows in dBm on the line below (uncalibrated: good for comparing antenna positions).
 - **CH+ and CH-** (or up and down): The next or previous repeater in the list, by the same route (on air or stream). Keep pressing to scroll; each press moves straight on.
 - **OK:** Hides or shows the bar.
 - **Yellow,** on a stream: Swaps between gstplayer and exteplayer3, for a stream that gives sound but no picture.

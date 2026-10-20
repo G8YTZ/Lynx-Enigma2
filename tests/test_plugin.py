@@ -382,6 +382,27 @@ def test_bar_uses_demodulator_when_driver_echoes():
     finally:
         rs6060.modcod = real
 
+
+def test_level_from_strength():
+    from LynxRepeaters import rs6060
+    got = [round(rs6060.level_dbm(p * 656)) for p in (20, 32, 56, 72, 85)]
+    assert got == [-77, -73, -65, -58, -49]          # Justin's -40 to 0 dB steps, 21 Oct 2026
+    assert rs6060.level_dbm(0) is None
+
+
+def test_magic_eye():
+    from LynxRepeaters import eye
+    assert round(eye.margin_db(9.54, "8PSK", "2/3"), 2) == 2.92
+    assert eye.margin_db(9.54, None, None) is None
+    assert eye.closure(False, 19.0, 11.0) == 0.0                 # no lock: wide open, dark
+    assert eye.closure(True, 19.0, 12.0) == 1.0                  # plenty in hand: closed
+    assert 0.4 < eye.closure(True, 9.5, 2.9) < 0.6               # the -39 dB point: half shut
+    assert eye.closure(True, 10.0, None) == 0.5                  # MODCOD unknown: SNR alone
+    wide, shut = eye.draw(110, 0.0), eye.draw(110, 1.0)
+    assert any(r[4] == eye.SHADOW for r in wide) and not any(r[4] == eye.SHADOW for r in shut)
+    assert all(r[4] == eye.DARK for r in eye.draw(110, 0.5, lit=False))
+    assert all(0 <= r[0] and r[0] + r[2] <= 110 and 0 <= r[1] < 110 for r in wide)
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

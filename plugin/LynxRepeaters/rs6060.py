@@ -99,15 +99,41 @@ def decode_s2(value):
 _where = []
 
 
+def find_cached():
+    if not _where:
+        _where.append(find())
+    return _where[0]
+
+
 def modcod():
     """What the demodulator has locked to, or {} if there is no RS6060 or
     nothing sensible to read. Cheap enough to call once a second."""
-    if not _where:
-        _where.append(find())
-    where = _where[0]
+    where = find_cached()
     if not where:
         return {}
     try:
         return decode_s2(read_byte(where[0], where[1], REG_S2_MODCOD))
     except (IOError, OSError, ValueError):
         return {}
+
+
+def level_dbm(strength):
+    """The signal level in dBm from the driver's 0 to 65535 strength, by
+    running its sum backwards (TBS m88rs6060.c, m88rs6060_read_status):
+    the tuner gain G (0.01 dB) maps to a percentage in three straight
+    sections, x 656, and the level is -G / 100 + 2.79 dBm. None for 0 (no
+    signal). Checked on the H11S, 21 Oct 2026: 32, 56, 72, 85 % for Lynx-Tx
+    at -30, -20, -10, 0 dB gave -73, -65, -58, -49 dBm. Uncalibrated:
+    good for comparing, within a few dB absolute."""
+    if not strength:
+        return None
+    pct = strength / 656.0
+    if pct < 5:
+        return None
+    if pct < 65:
+        gain = 8500 - (pct - 5) * 100 / 3.0
+    elif pct < 90:
+        gain = 6500 - (pct - 65) * 200 / 3.0
+    else:
+        gain = 4500 - (pct - 90) * 500
+    return -gain / 100.0 + 2.79

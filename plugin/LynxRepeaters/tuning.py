@@ -317,11 +317,27 @@ def signal(session):
     return db, q, bool(st.get("tuner_locked"))
 
 
-def signal_text(session):
+def level(session):
+    """The signal level in dBm, where the demodulator is one Lynx knows how
+    to read it from (the RS6060), else None."""
+    try:
+        from . import rs6060
+        if not rs6060.find_cached():
+            return None
+        st = session.nav.getCurrentService().frontendInfo().getFrontendStatus()
+        p = st.get("tuner_signal_power")
+        return rs6060.level_dbm(p) if isinstance(p, Integral) else None
+    except Exception:
+        return None
+
+
+def signal_text(session, margin=None):
     db, q, locked = signal(session)
     if not locked:
         return _("No lock")
     if db is not None:
+        if margin is not None:
+            return _("SNR %.1f dB  %+.1f") % (db, margin)
         return _("SNR %.1f dB") % db
     return _("Signal %d%%") % q if q is not None else _("Locked")
 
