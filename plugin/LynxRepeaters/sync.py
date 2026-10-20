@@ -12,6 +12,8 @@ waits on it; writing the channel list and reloading it happen back on
 Enigma2's own thread. If BATC cannot be reached the last list stays."""
 from __future__ import absolute_import, division, print_function
 
+import os
+import subprocess
 import threading
 import time
 
@@ -20,6 +22,28 @@ from .tuning import _timer
 
 FIRST_DELAY_MS = 60 * 1000
 POLL_MS = 1000
+
+
+# A box with no battery-backed clock starts at its image's build date after
+# a power cut, and a repeater-only box never sees satellite time. HTTPS to
+# BATC fails until the clock is right, so set it once if it is plainly wrong.
+SANE_YEAR = 2025
+NTP_SERVER = "pool.ntp.org"
+NTPDATE = ("/usr/sbin/ntpdate", "/usr/bin/ntpdate", "/sbin/ntpdate")
+
+
+def fix_clock():
+    if time.localtime().tm_year >= SANE_YEAR:
+        return False
+    for exe in NTPDATE:
+        if os.path.exists(exe):
+            try:
+                rc = subprocess.call([exe, "-b", NTP_SERVER])
+                print("[LynxRepeaters] clock was wrong; %s gave %d, now %s" % (exe, rc, time.ctime()))
+                return rc == 0
+            except Exception as e:
+                print("[LynxRepeaters] clock: %s" % e)
+    return False
 
 
 class StreamSync(object):
@@ -73,6 +97,7 @@ class StreamSync(object):
         self.poll.start(POLL_MS, True)
 
     def _fetch(self):                  # worker thread: no Enigma2 calls here
+        fix_clock()
         try:
             self._result = ("ok", streams.fetch())
         except Exception as e:

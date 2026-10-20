@@ -263,6 +263,18 @@ def test_stream_player_choice():
     assert streams.service_ref(s, 5002).startswith("5002:0:1:0:0:0:0:0:0:0:rtmp%3a//")
     assert "#SERVICE 5002:" in streams.bouquet_text([s], 5002)
 
+
+def test_fix_clock_only_when_wrong():
+    from LynxRepeaters import sync
+    calls = []
+    sync.subprocess = type("SP", (), {"call": staticmethod(lambda args: calls.append(args) or 0)})
+    sync.NTPDATE = (sys.executable,)                      # any file that exists
+    assert sync.fix_clock() is False and calls == []      # this PC's clock is fine
+    old = sync.SANE_YEAR
+    sync.SANE_YEAR = 9999
+    assert sync.fix_clock() is True and calls[0][1:] == ["-b", "pool.ntp.org"]
+    sync.SANE_YEAR = old
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

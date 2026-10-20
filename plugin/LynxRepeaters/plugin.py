@@ -49,7 +49,7 @@ def sessionstart(reason, session=None, **kwargs):
         from . import sync
         s = sync.get()
         s.rewrite_bouquet()         # with the player in use now (ServiceApp may be new)
-        s.start()                   # first BATC check a minute after boot
+        s.start(15 * 1000)          # first BATC check (and clock) soon after boot
     if not screens.cfg.autostart.value:
         return
     from .tuning import _timer
