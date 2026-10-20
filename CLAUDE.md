@@ -58,4 +58,4 @@ Oscillators are per-band settings. 13 cm (GB3TZ) is out. Analogue outputs and an
 4. Settings: locator, per-band LNB oscillator, LNB voltage (13/18 V).
 5. List update from GitHub; then an installable `.ipk`, then a ready-made box image to sell. Justin would be the support desk: keep set-up minimal.
 
-Test by running `tools/deploy.sh [box]` on Justin's Mac: it copies the plugin and list to `/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters/` and restarts the GUI (`init 4; init 3`).
+Test by running `tools/deploy.sh [box]` on Justin's Mac: it copies the plugin and list to `/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters/` and restarts the GUI via OpenWebif (`/api/powerstate?newstate=3`), falling back to `/sbin/init 4; /sbin/init 3` over SSH. **SSH's PATH on the box has no `/sbin`**: use full paths. The box's clock was about 5 years slow on 20 Oct 2026.

@@ -17,11 +17,15 @@ STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 cp "$HERE"/plugin/LynxRepeaters/*.py "$HERE/data/repeaters.json" "$STAGE/"
 # COPYFILE_DISABLE stops macOS tar adding ._ files; tar over ssh avoids
-# needing SFTP on the box.
+# needing SFTP on the box; -m stops tar fussing when the box's clock is wrong.
 COPYFILE_DISABLE=1 tar -C "$STAGE" -cf - . | \
-    ssh root@"$BOX" "mkdir -p $DEST && rm -rf $DEST/__pycache__ && tar -C $DEST -xf -"
+    ssh root@"$BOX" "mkdir -p $DEST && rm -rf $DEST/__pycache__ && tar -m -C $DEST -xf -"
 echo "Copied to $BOX:$DEST"
 if [ -n "$RESTART" ]; then
-    ssh root@"$BOX" "init 4; sleep 3; init 3"
+    # OpenWebif's "restart GUI" works whatever the box's init system; if
+    # OpenWebif is not there, do it over SSH (/sbin is not on SSH's PATH).
+    if ! curl -fsS -m 5 "http://$BOX/api/powerstate?newstate=3" >/dev/null 2>&1; then
+        ssh root@"$BOX" "/sbin/init 4; sleep 3; /sbin/init 3"
+    fi
     echo "GUI restarting; the plugin is under Plugins as UK ATV Repeaters."
 fi
