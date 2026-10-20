@@ -378,3 +378,39 @@ def title_text(entry, live_params):
     if entry["call"].upper() in name.upper():
         return name, entry["town"] + km
     return name, "%s   %s%s" % (entry["call"], entry["town"], km)
+
+
+def match_playing(entries, ref, name=""):
+    """Which list entry a service reference is, for a channel Lynx did not
+    start itself (after a restart the box carries on with the last one).
+    A BATC stream is matched by its stream name; a repeater on air by the
+    frequency in the service's namespace (position 192 << 16 | MHz).
+    Several repeaters share a frequency (1304 MHz: GB3KM, GB3OO, GB3SQ), so
+    the broadcast name decides when it holds a callsign; failing that the
+    first in the list, which is the nearest when a locator is set.
+    Returns the entry as Lynx would have it when watching, or None."""
+    ref = ref or ""
+    marker = "rtmp.batc.org.uk/live/"
+    if marker in ref:
+        key = ref.split(marker, 1)[1].split(":")[0].split(" ")[0].lower()
+        for e in entries:
+            s = e.get("stream")
+            if s and s["key"].lower() == key:
+                return dict(e, locked_sr_ks=None, via_stream=True)
+        return None
+    parts = ref.split(":")
+    if len(parts) < 7 or parts[0] != "1":
+        return None
+    try:
+        ns = int(parts[6], 16)
+    except ValueError:
+        return None
+    if ns >> 16 != repeaters.BOX_ORBPOS:
+        return None
+    mhz = ns & 0xFFFF
+    same = [e for e in entries if e.get("box_khz") and e["box_khz"] // 1000 == mhz]
+    if not same:
+        return None
+    named = [e for e in same if e["call"].upper() in (name or "").upper()]
+    e = (named or same)[0]
+    return dict(e, locked_sr_ks=e["output"].get("sr_ks"))

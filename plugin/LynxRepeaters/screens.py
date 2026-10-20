@@ -32,7 +32,7 @@ from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 
 from . import repeaters, streams, sync
-from .tuning import RepeaterTuner, _timer, live, signal_text, tech_text, title_text
+from .tuning import RepeaterTuner, _timer, live, match_playing, signal_text, tech_text, title_text
 
 try:
     _
@@ -153,6 +153,13 @@ class RepeaterList(Screen):
         self.stream_timer, self._st = _timer(self._check_stream)
         self.bar = None                   # the Lynx bar while it is open
         self.idle_timer, self._it = _timer(self._idle)
+        self.hidden = False
+        # While the list is hidden over a channel Lynx does not know, any of
+        # these keys brings it back (they reach this map before the list).
+        unhide = dict((k, self._unhide) for k in (
+            "ok", "cancel", "red", "green", "yellow", "blue", "menu", "up", "down", "left", "right"))
+        self["unhide"] = ActionMap(["OkCancelActions", "ColorActions", "MenuActions", "DirectionActions"], unhide, -5)
+        self["unhide"].setEnabled(False)
         self.onClose.append(self.idle_timer.stop)
         self.onClose.append(self.stream_timer.stop)
         self["list"] = List([])
@@ -181,6 +188,7 @@ class RepeaterList(Screen):
         self.sync.listeners.append(self.refresh)
         self.onClose.append(lambda: self.sync.listeners.remove(self.refresh))
         self.onLayoutFinish.append(self.refresh)
+        self.onLayoutFinish.append(self._adopt_playing)
         if cfg.streams.value and self.sync.stale():
             self.sync.refresh()
 
@@ -344,12 +352,45 @@ class RepeaterList(Screen):
         if leave:
             self.close()
 
+    def _adopt_playing(self):
+        """Lynx opened over a channel it did not start: if it is a repeater
+        or a BATC stream on the list, treat it as watched."""
+        if self.watching:
+            return
+        cur = self._playing()
+        if cur is None:
+            return
+        rows = [r[0] for r in self["list"].list]
+        try:
+            name = self.session.nav.getCurrentService().info().getName()
+        except Exception:
+            name = ""
+        found = match_playing(rows, cur.toString(), name)
+        if found:
+            self.watching = found
+            self["status"].setText(_("Watching %s") % found["call"])
+            self._touched()
+        self._red()
+
+    def _something_playing(self):
+        return self._playing() is not None
+
+    def _hide_list(self):
+        self.hidden = True
+        self.hide()
+        self["unhide"].setEnabled(True)
+
+    def _unhide(self):
+        self.hidden = False
+        self["unhide"].setEnabled(False)
+        self.show()
+
     def _red(self):
         """Red: Stop while tuning, Close menu (back to the picture) while
         something plays, nothing otherwise. It never leaves Lynx."""
         if self.tuner.busy or self.stream_timer.isActive():
             self["key_red"].setText(_("Stop"))
-        elif self.watching:
+        elif self.watching or self._something_playing():
             self["key_red"].setText(_("Close menu"))
         else:
             self["key_red"].setText("")
@@ -379,6 +420,8 @@ class RepeaterList(Screen):
             return
         if self.watching:
             return self._show(self.watching)     # back to the picture
+        if self._something_playing():
+            return self._hide_list()             # a channel Lynx does not know
         self["status"].setText(_("To leave Lynx: MENU, then Leave Lynx"))
 
     def leave(self):

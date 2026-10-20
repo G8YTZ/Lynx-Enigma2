@@ -297,6 +297,20 @@ def test_stream_only_repeaters():
     assert [(x["call"], x["town"]) for x in only] == [("DB0OZ", "Bremen"), ("Oscar 100 net", "")]
     assert only[0]["stream"]["key"] == "db0oz"
 
+
+def test_match_playing():
+    rows = repeaters.rows(DATA, show_off=True)
+    for e in rows:
+        e["stream"] = {"key": "gb3hv", "name": "GB3HV"} if e["call"] == "GB3HV" else None
+    ref = "1:0:1:1:1:FF01:C02B2E:0:0:0:"                                      # 1304 MHz: GB3KM, GB3OO, GB3SQ
+    oo = tuning.match_playing(rows, ref, "GB3OO Folkestone")
+    assert oo["call"] == "GB3OO" and oo["locked_sr_ks"] == 2000
+    assert tuning.match_playing(rows, ref, "Test card")["call"] == rows[[e["box_khz"] for e in rows].index(11054000)]["call"]
+    hv = tuning.match_playing(rows, "5001:0:1:0:0:0:0:0:0:0:rtmp%3a//rtmp.batc.org.uk/live/gb3hv:GB3HV Alton")
+    assert hv["call"] == "GB3HV" and hv["via_stream"]
+    assert tuning.match_playing(rows, "1:0:19:283D:3FB:1:C00000:0:0:0:") is None   # BBC One HD
+    assert tuning.match_playing(rows, "") is None
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):
