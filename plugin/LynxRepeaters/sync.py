@@ -79,7 +79,8 @@ class StreamSync(object):
         self.timer.start(delay_ms, True)
 
     def stale(self):
-        return time.time() - self.fetched > streams.MAX_AGE_S
+        age = time.time() - self.fetched
+        return age < 0 or age > streams.MAX_AGE_S      # from the "future": the clock is wrong
 
     def due(self):
         """Fetch now if the list is an hour old; check again in an hour."""

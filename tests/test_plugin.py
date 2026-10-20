@@ -1,6 +1,7 @@
 """Run with: python3 -m pytest tests (or python3 tests/test_plugin.py)."""
 import os
 import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path[:0] = [HERE, os.path.join(HERE, "..", "plugin")]
@@ -247,6 +248,8 @@ def test_sync_updates_and_keeps_list_on_error(monkeypatch=None):
     s._worker.join()
     fe.run()
     assert len(s.streams) == 3 and calls == [1]                           # last list kept
+    s.fetched = time.time() + 5 * 365 * 86400                             # clock gone back to 2021
+    assert s.stale()
 
 
 def test_stream_player_choice():
