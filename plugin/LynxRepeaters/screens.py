@@ -103,11 +103,11 @@ class RepeaterList(Screen):
   <widget source="list" render="Listbox" position="30,110" size="1080,690" scrollbarMode="showOnDemand" backgroundColor="#00141414" backgroundColorSelected="#00d0021b" transparent="0">
     <convert type="TemplatedMultiContent">
       {"template": [
-        MultiContentEntryText(pos=(12,0), size=(160,46), font=0, flags=RT_HALIGN_LEFT|RT_VALIGN_CENTER, text=1, color=6),
-        MultiContentEntryText(pos=(180,0), size=(360,46), font=0, flags=RT_HALIGN_LEFT|RT_VALIGN_CENTER, text=2, color=6),
-        MultiContentEntryText(pos=(540,0), size=(150,46), font=0, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=3, color=6),
-        MultiContentEntryText(pos=(710,0), size=(170,46), font=0, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=4, color=6),
-        MultiContentEntryText(pos=(890,0), size=(170,46), font=0, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=5, color=6)],
+        MultiContentEntryText(pos=(12,0), size=(160,46), font=0, flags=RT_HALIGN_LEFT|RT_VALIGN_CENTER, text=1, color=0xFF000006, color_sel=0xFFFFFF),
+        MultiContentEntryText(pos=(180,0), size=(360,46), font=0, flags=RT_HALIGN_LEFT|RT_VALIGN_CENTER, text=2, color=0xFF000006, color_sel=0xFFFFFF),
+        MultiContentEntryText(pos=(540,0), size=(150,46), font=0, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=3, color=0xFF000006, color_sel=0xFFFFFF),
+        MultiContentEntryText(pos=(710,0), size=(170,46), font=0, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=4, color=0xFF000006, color_sel=0xFFFFFF),
+        MultiContentEntryText(pos=(890,0), size=(170,46), font=0, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=5, color=0xFF000006, color_sel=0xFFFFFF)],
        "fonts": [gFont("Regular", 30)],
        "itemHeight": 46}
     </convert>
