@@ -262,8 +262,8 @@ def test_stream_player_choice():
     os.mkdir(streams.SERVICEAPP)
     open(streams.EXTEPLAYER3, "w").close()
     open(streams.GSTPLAYER, "w").close()
-    assert streams.player_chain("auto") == [4097, 5001, 5002]  # box's own first, as Justin asked
-    assert streams.player_type("auto") == 4097
+    assert streams.player_chain("auto") == [5001, 5002, 4097]  # gstplayer first: Justin, 20 Oct
+    assert streams.player_type("auto") == 5001
     assert streams.player_chain("exteplayer3") == [5002]
     assert streams.player_type("builtin") == 4097 and streams.player_type("gstplayer") == 5001
     s = {"name": "GB3HV", "url": "rtmp://rtmp.batc.org.uk/live/gb3hv"}

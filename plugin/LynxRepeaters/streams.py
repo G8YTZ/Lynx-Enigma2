@@ -55,18 +55,19 @@ PLAYER_NAMES = {4097: "the box's own player", 5001: "gstplayer", 5002: "exteplay
 
 
 def player_chain(choice="auto"):
-    """Service types to try in turn. auto: the box's own player first, then
-    gstplayer and exteplayer3 where ServiceApp has them; a named player
-    alone otherwise."""
+    """Service types to try in turn. auto: gstplayer, then exteplayer3,
+    where ServiceApp has them, and the box's own player last (on the H11S
+    most BATC streams give it sound only; Justin, 20 Oct 2026). A named
+    player alone otherwise."""
     if choice in PLAYERS:
         return [PLAYERS[choice]]
-    chain = [PLAYERS["builtin"]]
+    chain = []
     if os.path.isdir(SERVICEAPP):
         if os.path.exists(GSTPLAYER):
             chain.append(PLAYERS["gstplayer"])
         if os.path.exists(EXTEPLAYER3):
             chain.append(PLAYERS["exteplayer3"])
-    return chain
+    return chain + [PLAYERS["builtin"]]
 
 
 def player_type(choice="auto"):
