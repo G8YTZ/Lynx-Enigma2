@@ -12,10 +12,13 @@ British English, metric. No long dashes (use a colon, semicolon, comma, brackets
   - `repeaters.py`: The arithmetic (band, LNB, box frequency, locator, distance, list rows). No Enigma2 imports.
   - `tuning.py`: `RepeaterTuner`: stop the service, `eComponentScan` of one transponder per symbol rate (flags keep the rest of the service list), collect refs from `newService`, play the first TV type; watchdog 20 s per rate. `signal()` reads SNR from `frontendInfo().getFrontendStatus()`.
   - `screens.py`: `RepeaterList` (OK/green watch, yellow hunt all rates, blue settings), `LynxBar` (bottom strip while watching), `LynxSettings` (`config.plugins.lynxrepeaters`). Skins drawn at 1920x1080, scaled by `_scale()`.
-  - `plugin.py`: Descriptor, Plugins menu and Extensions menu.
+  - `streams.py`: BATC live list (same API and filters as Lynx Rx), matched to repeaters by callsign; RTMP address always built as `rtmp://rtmp.batc.org.uk/live/<name>` (names checked against `[A-Za-z0-9_.-]`); "BATC Live" bouquet `userbouquet.lynx_batc.tv` added to `bouquets.tv`; cache `/etc/enigma2/lynx_streams.json`. Unverified HTTPS only as a fallback when the box lacks CA certificates.
+  - `sync.py`: `StreamSync`, hourly, first check a minute after boot; network in a worker thread, files and `reloadBouquets()` on Enigma2's thread; keeps the last list on error.
+  - `plugin.py`: Descriptor, Plugins and Extensions menus, session start (stream sync, Open Lynx at start-up).
+  - The Lynx bar shows the broadcast (SDT) name live, large, with the list's callsign, town and distance beside it.
 - `data/repeaters.json`: 31 repeaters, 27 watchable outputs. `tools/deploy.sh` copies it beside the plugin.
 - `tests/test_plugin.py`: List and tuner logic against stand-ins for Enigma2 (`tests/fake_enigma.py`).
-- Next: **First run on the box** (`tools/deploy.sh`, then watch GB3OO; `tools/foreground.sh` for the traceback if it fails). Still to confirm: that a rescan of a known transponder plays again, the SNR shown on the Lynx bar, the symbol-rate hunt, skin look. Then the hourly BATC stream list (same API as Lynx Rx: `https://batc.org.uk/live-api/stream_list.php`, played as `rtmp://rtmp.batc.org.uk/live/<stream_output_url>`), which needs the box's clock right for HTTPS (NTP not working yet). Then plan step 5.
+- Next: **First run on the box** (`tools/deploy.sh`, then watch GB3OO; `tools/foreground.sh` for the traceback if it fails). Still to confirm: that a rescan of a known transponder plays again, the SNR shown on the Lynx bar, the symbol-rate hunt, skin look. BATC streams are written (20 Oct) but not yet run on the box; RTMP playback of a `4097:` ref not yet confirmed there. The box's clock is now right (NTP working). Then plan step 5.
 
 ## The test box
 
@@ -63,4 +66,4 @@ Oscillators are per-band settings. 13 cm (GB3TZ) is out. Analogue outputs and an
 4. Settings: locator, per-band LNB oscillator, LNB voltage (13/18 V).
 5. List update from GitHub; then an installable `.ipk`, then a ready-made box image to sell. Justin would be the support desk: keep set-up minimal.
 
-Test by running `tools/deploy.sh [box]` on Justin's Mac: it copies the plugin and list to `/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters/` and restarts the GUI (`/sbin/init 4`, `killall -9 enigma2`, `/sbin/init 3`), clearing stray `enigma2` copies. `tools/foreground.sh` runs the GUI in the terminal for tracebacks (log in `~/lynx-run.log`); **never leave a foreground `enigma2` running**: three copies at once hung the box on 20 Oct. **SSH's PATH on the box has no `/sbin`**: use full paths. The box's clock was about 5 years slow on 20 Oct 2026.
+Test by running `tools/deploy.sh [box]` on Justin's Mac: it copies the plugin and list to `/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters/` and restarts the GUI (`/sbin/init 4`, `killall -9 enigma2`, `/sbin/init 3`), clearing stray `enigma2` copies. `tools/foreground.sh` runs the GUI in the terminal for tracebacks (log in `~/lynx-run.log`); **never leave a foreground `enigma2` running**: three copies at once hung the box on 20 Oct. **SSH's PATH on the box has no `/sbin`**: use full paths. The box's clock was about 5 years slow until NTP was switched on (20 Oct 2026); now right.

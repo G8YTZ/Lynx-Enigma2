@@ -45,6 +45,9 @@ def sessionstart(reason, session=None, **kwargs):
     if reason != 0 or session is None:
         return
     from . import screens
+    if screens.cfg.streams.value:
+        from . import sync
+        sync.get().start()          # first BATC check a minute after boot
     if not screens.cfg.autostart.value:
         return
     from .tuning import _timer

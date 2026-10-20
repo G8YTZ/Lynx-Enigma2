@@ -176,6 +176,78 @@ def test_title_text():
     assert tuning.clean_name("\x86GB3EN\x87 ") == "GB3EN"
     assert tuning.title_text(e, {"name": "G8YTZ Lynx-Tx"}) == ("G8YTZ Lynx-Tx", "GB3EN   North London   25 km")
 
+
+API_SAMPLE = {
+    "repeaters": [
+        {"active": 1, "stream_listed": "1", "stream_title": "GB3OO Folkestone", "stream_output_url": "gb3oo",
+         "stream_type_repeater": "1"},
+        {"active": 1, "stream_listed": "1", "stream_title": "GB3HV Alton", "stream_output_url": "gb3hv-hd",
+         "stream_type_repeater": "1"},
+        {"active": 0, "stream_listed": "1", "stream_title": "GB3TV", "stream_output_url": "gb3tv"},
+        {"active": 1, "stream_listed": "0", "stream_title": "Hidden", "stream_output_url": "hidden"},
+    ],
+    "members": [
+        {"active": 1, "stream_listed": "1", "stream_title": "G8YTZ shack", "stream_output_url": "g8ytz"},
+        {"active": 1, "stream_listed": "1", "stream_title": "Nasty", "stream_output_url": "x\" :evil"},
+    ],
+    "count": 6,
+}
+
+
+def test_streams_parse_and_match():
+    from LynxRepeaters import streams
+    got = streams.parse(API_SAMPLE)
+    assert [g["key"] for g in got] == ["gb3hv-hd", "gb3oo", "g8ytz"]      # repeaters first; bad names dropped
+    assert got[1]["url"] == "rtmp://rtmp.batc.org.uk/live/gb3oo"
+    assert streams.for_call(got, "GB3OO")["key"] == "gb3oo"
+    assert streams.for_call(got, "GB3HV")["key"] == "gb3hv-hd"
+    assert streams.for_call(got, "GB3H") is None and streams.for_call(got, "GB3TV") is None
+    assert streams.service_ref(got[1]) == "4097:0:1:0:0:0:0:0:0:0:rtmp%3a//rtmp.batc.org.uk/live/gb3oo:GB3OO Folkestone"
+
+
+def test_streams_bouquet_files():
+    import tempfile
+    from LynxRepeaters import streams
+    d = tempfile.mkdtemp()
+    with open(os.path.join(d, "bouquets.tv"), "w") as f:
+        f.write('#NAME User - bouquets (TV)\n#SERVICE 1:7:1:0:0:0:0:0:0:0:FROM BOUQUET "userbouquet.favourites.tv" ORDER BY bouquet\n')
+    got = streams.parse(API_SAMPLE)
+    assert streams.write_bouquet(got, d) is True
+    assert streams.write_bouquet(got, d) is False                        # nothing changed second time
+    tv = open(os.path.join(d, "bouquets.tv")).read()
+    assert tv.count(streams.BOUQUET) == 1 and "favourites" in tv
+    b = open(os.path.join(d, streams.BOUQUET)).read().splitlines()
+    assert b[0] == "#NAME BATC Live" and b[1].startswith("#SERVICE 4097:") and len(b) == 7
+    path = os.path.join(d, "cache.json")
+    streams.save(got, path, now=1234)
+    assert streams.load(path) == (got, 1234)
+    assert streams.load(os.path.join(d, "missing.json")) == ([], 0)
+
+
+def test_sync_updates_and_keeps_list_on_error(monkeypatch=None):
+    import tempfile
+    from LynxRepeaters import streams, sync
+    d = tempfile.mkdtemp()
+    streams.CACHE, streams.BOUQUET_DIR = os.path.join(d, "c.json"), d
+    fe.mod.eDVBDB = type("DB", (), {"getInstance": staticmethod(lambda: type("I", (), {"reloadBouquets": lambda self: None})())})
+    sync.StreamSync.instance = None
+    s = sync.get()
+    assert s.stale() and s.streams == []
+    calls = []
+    s.listeners.append(lambda: calls.append(1))
+    streams.fetch = lambda timeout=15: streams.parse(API_SAMPLE)
+    s.refresh()
+    s._worker.join()
+    fe.run()
+    assert len(s.streams) == 3 and not s.stale() and calls == [1]
+    def boom(timeout=15):
+        raise IOError("no network")
+    streams.fetch = boom
+    s.refresh()
+    s._worker.join()
+    fe.run()
+    assert len(s.streams) == 3 and calls == [1]                           # last list kept
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

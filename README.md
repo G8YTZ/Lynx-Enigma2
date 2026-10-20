@@ -29,7 +29,9 @@ That copies the plugin to `/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeat
 
 - **OK or green:** Watch the highlighted repeater. Lynx scans its one transponder and plays the programme it finds.
 - **Yellow:** Watch, trying every common symbol rate (for a listed rate that is wrong).
-- **Blue or MENU:** Settings: your locator, LNB supply (13 or 18 V), the 9 cm and 3 cm LNB oscillators, whether to show repeaters listed as off air, and whether Lynx opens by itself when the box starts.
+- **MENU:** Every choice in one place: watch on air, watch the BATC stream (for repeaters marked LIVE), try every symbol rate, check BATC now, settings.
+- **Blue:** Settings: your locator, LNB supply (13 or 18 V), the 9 cm and 3 cm LNB oscillators, whether to show repeaters listed as off air, whether Lynx opens by itself when the box starts, and the BATC live streams.
+- **BATC Live:** Lynx checks the BATC streamer every hour and keeps a **BATC Live** channel list, so live streams can be watched from the box's ordinary channel list too.
 - While watching, the Lynx bar shows callsign, town, distance and live SNR. **OK** hides it, **EXIT** goes back to the list, **red** leaves Lynx with the repeater still on.
 
 Tests (on any PC): `python3 tests/test_plugin.py`

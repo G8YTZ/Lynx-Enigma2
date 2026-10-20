@@ -17,7 +17,7 @@ from __future__ import absolute_import, division, print_function
 
 import re
 
-from enigma import getDesktop
+from enigma import eServiceReference, getDesktop
 
 from Components.ActionMap import ActionMap
 from Components.ConfigList import ConfigListScreen
@@ -26,10 +26,11 @@ from Components.Sources.List import List
 from Components.Sources.StaticText import StaticText
 from Components.config import (ConfigInteger, ConfigSelection, ConfigSubsection, ConfigText,
                                ConfigYesNo, config, configfile, getConfigListEntry)
+from Screens.ChoiceBox import ChoiceBox
 from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 
-from . import repeaters
+from . import repeaters, streams, sync
 from .tuning import RepeaterTuner, _timer, live, signal_text, tech_text, title_text
 
 try:
@@ -51,6 +52,7 @@ cfg.osc_9cm = ConfigInteger(default=repeaters.BANDS["9cm"][2], limits=(1, 20000)
 cfg.osc_3cm = ConfigInteger(default=repeaters.BANDS["3cm"][2], limits=(1, 20000))
 cfg.show_off = ConfigYesNo(default=False)
 cfg.autostart = ConfigYesNo(default=False)
+cfg.streams = ConfigYesNo(default=True)
 
 
 def lnb_osc():
@@ -105,11 +107,12 @@ class RepeaterList(Screen):
     <convert type="TemplatedMultiContent">
       {"template": [
         MultiContentEntryText(pos=(12,0), size=(160,46), font=0, flags=RT_HALIGN_LEFT|RT_VALIGN_CENTER, text=1, color=0xFF000006, color_sel=0xFFFFFF),
-        MultiContentEntryText(pos=(180,0), size=(360,46), font=0, flags=RT_HALIGN_LEFT|RT_VALIGN_CENTER, text=2, color=0xFF000006, color_sel=0xFFFFFF),
-        MultiContentEntryText(pos=(540,0), size=(150,46), font=0, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=3, color=0xFF000006, color_sel=0xFFFFFF),
-        MultiContentEntryText(pos=(710,0), size=(170,46), font=0, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=4, color=0xFF000006, color_sel=0xFFFFFF),
-        MultiContentEntryText(pos=(890,0), size=(170,46), font=0, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=5, color=0xFF000006, color_sel=0xFFFFFF)],
-       "fonts": [gFont("Regular", 30)],
+        MultiContentEntryText(pos=(180,0), size=(320,46), font=0, flags=RT_HALIGN_LEFT|RT_VALIGN_CENTER, text=2, color=0xFF000006, color_sel=0xFFFFFF),
+        MultiContentEntryText(pos=(500,0), size=(130,46), font=0, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=3, color=0xFF000006, color_sel=0xFFFFFF),
+        MultiContentEntryText(pos=(640,0), size=(160,46), font=0, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=4, color=0xFF000006, color_sel=0xFFFFFF),
+        MultiContentEntryText(pos=(810,0), size=(150,46), font=0, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=5, color=0xFF000006, color_sel=0xFFFFFF),
+        MultiContentEntryText(pos=(970,0), size=(90,46), font=1, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=7, color=0xFFD200, color_sel=0xFFFFFF)],
+       "fonts": [gFont("Regular", 30), gFont("Regular", 24)],
        "itemHeight": 46}
     </convert>
   </widget>
@@ -142,11 +145,16 @@ class RepeaterList(Screen):
             "cancel": self.exit,
             "red": self.exit,
             "blue": self.settings,
-            "menu": self.settings,
+            "menu": self.menu,
         }, -1)
         self["list"].onSelectionChanged.append(self._selected)
         self.data = repeaters.load()
+        self.sync = sync.get()
+        self.sync.listeners.append(self.refresh)
+        self.onClose.append(lambda: self.sync.listeners.remove(self.refresh))
         self.onLayoutFinish.append(self.refresh)
+        if cfg.streams.value and self.sync.stale():
+            self.sync.refresh()
 
     def _playing(self):
         nav = self.session.nav
@@ -164,11 +172,16 @@ class RepeaterList(Screen):
             km = "" if e["km"] is None else ("%s%d km" % ("~" if e["approx"] else "", round(e["km"])))
             sr = "%d kS/s" % o["sr_ks"] if o.get("sr_ks") else "? kS/s"
             colour = GREY if e["status"] != "on" else WHITE
-            rows.append((e, e["call"], e["town"], km, "%g MHz" % o["freq_mhz"], sr, colour))
+            e["stream"] = self._stream_for(e)
+            rows.append((e, e["call"], e["town"], km, "%g MHz" % o["freq_mhz"], sr, colour,
+                         _("LIVE") if e["stream"] else ""))
         self["list"].setList(rows)
         loc = cfg.locator.value.strip().upper()
         self["where"].setText(_("From %s") % loc if here else _("Set your locator in Settings (blue)"))
         self._selected()
+
+    def _stream_for(self, e):
+        return streams.for_call(self.sync.streams, e["call"]) if cfg.streams.value else None
 
     def _current(self):
         cur = self["list"].getCurrent()
@@ -203,6 +216,9 @@ class RepeaterList(Screen):
         if e["band"] != "23cm":
             lines.append("")
             lines.append(_("Needs %s") % repeaters.BANDS[e["band"]][3])
+        if e.get("stream"):
+            lines.append("")
+            lines.append(_("Streaming now on BATC: MENU to watch"))
         self["call"].setText(e["call"])
         self["details"].setText("\n".join(lines))
 
@@ -251,6 +267,36 @@ class RepeaterList(Screen):
             self.session.nav.playService(self.old_service)   # put back what was on
         self.close()
 
+    def watch_stream(self):
+        e = self._current()
+        if not e or not e.get("stream") or self.tuner.busy:
+            return
+        self.session.nav.playService(eServiceReference(streams.service_ref(e["stream"])))
+        self.watching = dict(e, locked_sr_ks=None, via_stream=True)
+        self["status"].setText(_("Watching %s on the BATC streamer") % e["call"])
+        self.session.openWithCallback(self._bar_closed, LynxBar, self.watching)
+
+    # MENU: every choice in one place
+
+    def menu(self):
+        e = self._current()
+        if self.tuner.busy:
+            return
+        choices = []
+        if e:
+            choices.append((_("Watch %s on air") % e["call"], self.watch))
+            if e.get("stream"):
+                choices.append((_("Watch %s on the BATC streamer") % e["call"], self.watch_stream))
+            choices.append((_("Watch %s, trying every symbol rate") % e["call"], self.hunt))
+        if cfg.streams.value:
+            choices.append((_("Check BATC for live streams now"), self.sync.refresh))
+        choices.append((_("Settings"), self.settings))
+        self.session.openWithCallback(self._menu_chosen, ChoiceBox, title=_("Lynx"), list=choices)
+
+    def _menu_chosen(self, choice):
+        if choice:
+            choice[1]()
+
     # Settings
 
     def settings(self):
@@ -272,11 +318,10 @@ class LynxBar(Screen):
     def __init__(self, session, entry):
         Screen.__init__(self, session)
         self.entry = entry
-        o = entry["output"]
         big, beside = title_text(entry, {})
         self["call"] = Label(big)
         self["where"] = Label(beside)
-        self["tech"] = Label(tech_text(o["freq_mhz"], {}, entry["locked_sr_ks"]))
+        self["tech"] = Label(self._tech({}))
         self["signal"] = Label()
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
             "ok": self.toggle,
@@ -299,8 +344,14 @@ class LynxBar(Screen):
         big, beside = title_text(self.entry, p)
         self["call"].setText(big)
         self["where"].setText(beside)
-        self["signal"].setText(signal_text(self.session))
-        self["tech"].setText(tech_text(self.entry["output"]["freq_mhz"], p, self.entry["locked_sr_ks"]))
+        self["signal"].setText(_("BATC stream") if self.entry.get("via_stream") else signal_text(self.session))
+        self["tech"].setText(self._tech(p))
+
+    def _tech(self, p):
+        if self.entry.get("via_stream"):
+            return "   ".join([_("Internet stream from the BATC streamer")] +
+                               (["%dx%d" % p["size"]] if p.get("size") else []))
+        return tech_text(self.entry["output"]["freq_mhz"], p, self.entry["locked_sr_ks"])
 
     def toggle(self):
         self.visible = not self.visible
@@ -330,6 +381,7 @@ class LynxSettings(ConfigListScreen, Screen):
             getConfigListEntry(_("3 cm LNB oscillator (MHz)"), cfg.osc_3cm),
             getConfigListEntry(_("Show repeaters listed as off air"), cfg.show_off),
             getConfigListEntry(_("Open Lynx at start-up"), cfg.autostart),
+            getConfigListEntry(_("BATC live streams (checked hourly)"), cfg.streams),
         ]
         ConfigListScreen.__init__(self, items, session=session)
         self["help"] = Label(_("The LNB supply stays on to power inline preamplifiers. "
