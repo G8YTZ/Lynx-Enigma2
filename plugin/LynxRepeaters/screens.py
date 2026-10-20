@@ -13,6 +13,8 @@
                  distance, frequency, symbol rate and live SNR
   LynxSettings   locator, LNB supply voltage, per-band LNB oscillators
 """
+from __future__ import absolute_import, division, print_function
+
 import re
 
 from enigma import getDesktop

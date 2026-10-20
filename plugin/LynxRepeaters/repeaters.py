@@ -29,11 +29,13 @@ The polarisation chosen sets the LNB supply on the cable: vertical 13 V,
 horizontal 18 V. That powers the small inline preamplifiers many people use,
 and is harmless to a bare antenna on a DC-blocked feed.
 """
-from __future__ import annotations
+from __future__ import absolute_import, division, print_function
 
+import io
 import json
 import math
 import os
+import sys
 
 BOX_LO_MHZ = 9750          # the box's universal LNB, low band
 TUNER_MIN, TUNER_MAX = 950, 2150
@@ -64,29 +66,29 @@ DATA_PATHS = (
 DATA = next((p for p in DATA_PATHS if os.path.exists(p)), DATA_PATHS[-1])
 
 
-def band_of(freq_mhz: float) -> str | None:
+def band_of(freq_mhz):
     for name, (lo, hi, _osc, _what) in BANDS.items():
         if lo <= freq_mhz <= hi:
             return name
     return None
 
 
-def if_mhz(freq_mhz: float, lnb_osc_mhz: float = 0) -> float:
+def if_mhz(freq_mhz, lnb_osc_mhz=0):
     """What arrives at the box: the signal itself, or what the LNB makes of it
     (|signal - oscillator|, an oscillator above the signal inverting it)."""
     return freq_mhz if not lnb_osc_mhz else abs(freq_mhz - lnb_osc_mhz)
 
 
-def box_frequency_khz(freq_mhz: float, lnb_osc_mhz: float = 0) -> int:
+def box_frequency_khz(freq_mhz, lnb_osc_mhz=0):
     """The frequency to give Enigma2, in kHz, for the box's universal LNB."""
     return int(round((if_mhz(freq_mhz, lnb_osc_mhz) + BOX_LO_MHZ) * 1000))
 
 
-def tunable(freq_mhz: float, lnb_osc_mhz: float = 0) -> bool:
+def tunable(freq_mhz, lnb_osc_mhz=0):
     return TUNER_MIN <= if_mhz(freq_mhz, lnb_osc_mhz) <= TUNER_MAX
 
 
-def locator_to_latlon(loc: str) -> tuple[float, float] | None:
+def locator_to_latlon(loc):
     """Maidenhead locator (4 or 6 characters) to the middle of its square."""
     loc = (loc or "").strip().upper()
     if len(loc) < 4:
@@ -104,18 +106,29 @@ def locator_to_latlon(loc: str) -> tuple[float, float] | None:
         return None
 
 
-def distance_km(a: tuple[float, float], b: tuple[float, float]) -> float:
+def distance_km(a, b):
     (la1, lo1), (la2, lo2) = [(math.radians(x), math.radians(y)) for x, y in (a, b)]
     h = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
     return 6371 * 2 * math.asin(math.sqrt(h))
 
 
-def load(path: str = DATA) -> list[dict]:
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)["repeaters"]
+def _native(x):
+    """Python 2's json gives unicode; Enigma2's widgets there want str."""
+    if isinstance(x, dict):
+        return dict((_native(k), _native(v)) for k, v in x.items())
+    if isinstance(x, list):
+        return [_native(v) for v in x]
+    if sys.version_info[0] < 3 and isinstance(x, unicode):  # noqa: F821
+        return x.encode("utf-8")
+    return x
 
 
-def watchable(repeaters: list[dict], lnb_osc: dict | None = None) -> list[dict]:
+def load(path=DATA):
+    with io.open(path, encoding="utf-8") as f:
+        return _native(json.load(f))["repeaters"]
+
+
+def watchable(repeaters, lnb_osc=None):
     """Every digital output a box can tune, one entry per output, with the
     box frequency worked out. lnb_osc overrides the oscillator per band."""
     lnb_osc = lnb_osc or {}
@@ -137,7 +150,7 @@ def watchable(repeaters: list[dict], lnb_osc: dict | None = None) -> list[dict]:
     return out
 
 
-def valid_locator(loc: str) -> bool:
+def valid_locator(loc):
     """A 4 or 6 character Maidenhead locator, such as JO01 or JO01AJ."""
     loc = (loc or "").strip().upper()
     if len(loc) not in (4, 6):
@@ -146,7 +159,7 @@ def valid_locator(loc: str) -> bool:
     return ok and (len(loc) == 4 or ("A" <= loc[4] <= "X" and "A" <= loc[5] <= "X"))
 
 
-def position(r: dict) -> tuple[tuple[float, float] | None, bool]:
+def position(r):
     """Where a repeater is, and whether that is only the middle of its
     locator square (no lat/lon in the list)."""
     if r.get("lat") is not None and r.get("lon") is not None:
@@ -154,7 +167,7 @@ def position(r: dict) -> tuple[tuple[float, float] | None, bool]:
     return locator_to_latlon(r.get("locator", "")), True
 
 
-def note(entry: dict) -> str:
+def note(entry):
     """The one-line warning for a list row, or an empty string."""
     status = entry.get("status", "on")
     if status == "off":
@@ -166,8 +179,8 @@ def note(entry: dict) -> str:
     return ""
 
 
-def rows(repeaters: list[dict], home: tuple[float, float] | None = None,
-         lnb_osc: dict | None = None, show_off: bool = False) -> list[dict]:
+def rows(repeaters, home=None,
+         lnb_osc=None, show_off=False):
     """The list as the plugin shows it: one entry per watchable output, with
     distance (km, or None without a home position), nearest first.
     show_off keeps repeaters ETCC lists as off air."""

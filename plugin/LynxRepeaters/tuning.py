@@ -15,6 +15,10 @@ the box's service list like any other; nothing else in the list is touched.
 With an unknown symbol rate (or when asked to hunt) it tries the common
 rates in turn until one gives a service.
 """
+from __future__ import absolute_import, division, print_function
+
+from numbers import Integral
+
 from enigma import eComponentScan, eDVBFrontendParametersSatellite, eServiceReference, eTimer
 
 from . import repeaters
@@ -239,9 +243,9 @@ def signal(session):
     if not st:
         return None, None, False
     db = st.get("tuner_signal_quality_db")
-    db = db / 100.0 if isinstance(db, int) and 0 < db < 0x10000 else None
+    db = db / 100.0 if isinstance(db, Integral) and 0 < db < 0x10000 else None
     q = st.get("tuner_signal_quality")
-    q = q * 100 // 65535 if isinstance(q, int) and 0 <= q <= 65535 else None
+    q = q * 100 // 65535 if isinstance(q, Integral) and 0 <= q <= 65535 else None
     return db, q, bool(st.get("tuner_locked"))
 
 
