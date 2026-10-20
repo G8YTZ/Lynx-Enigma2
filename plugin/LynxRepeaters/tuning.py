@@ -272,6 +272,9 @@ def _named(human, raw, key, table):
     return table.get(raw.get(key))
 
 
+_logged = []
+
+
 def live(session):
     """What the tuner and decoder report for what is playing, rather than
     what the list says: sr_ks, system, modulation, fec, and the picture
@@ -293,6 +296,12 @@ def live(session):
         human = ConvertToHumanReadable(raw) if raw else {}
     except Exception:
         human = {}
+    if raw and not _logged:
+        # Once per run: everything the tuner reports, to see what this
+        # driver gives (the H11S's reports FEC as auto).
+        _logged.append(1)
+        print("[LynxRepeaters] frontend data: %r" % (raw,))
+        print("[LynxRepeaters] readable: %r" % (human,))
     sr = raw.get("symbol_rate")
     if isinstance(sr, Integral) and sr > 0:
         out["sr_ks"] = int(round(sr / 1000.0))
