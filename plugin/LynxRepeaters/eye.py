@@ -86,11 +86,10 @@ def closure(locked, snr_db, margin, dbm=None):
 FRAMES = 25   # eye/eye_00.png (open) to eye_24.png (closed), and eye_off.png
 
 
-# The eye closes slowly at first and faster as the signal gets good, so a
-# weak signal still shows a wide shadow (Justin, 21 Oct 2026: at -40 dB,
-# amount 0.33, it looked 80 % closed with a linear sweep and a 110 degree
-# shadow; he wanted about 30 %).
-EYE_GAMMA = 1.6
+# How far the frame choice bends the sweep. 1.0: frame n glows over n/24
+# of the disc, which is how Justin reads "% closed" (21 Oct 2026: wanted
+# -40 dB at about 30 %, 0 dB about 98 %; amounts there are 0.33 and 0.94).
+EYE_GAMMA = 1.0
 
 
 def frame(amount, lit):

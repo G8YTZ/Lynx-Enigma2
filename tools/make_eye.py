@@ -19,7 +19,6 @@ OUT = os.path.join(HERE, "..", "plugin", "LynxRepeaters", "eye")
 SIZE = 110            # pixels at 1920 x 1080; Enigma2 scales for other outputs
 SS = 4                # drawn at four times the size, then shrunk
 FRAMES = 25           # 0 .. 24
-OPEN_HALF_DEG = 80.0  # the shadow's half-angle when wide open (160 degrees, as a 6E5)
 
 
 def lerp(a, b, t):
@@ -56,15 +55,15 @@ def frame(amount, lit=True):
     c = s / 2.0
     r = s / 2.0 - 2 * SS
     if lit:
-        half = math.radians(OPEN_HALF_DEG * (1.0 - amount))
-        if half > 0.002:
-            # The shadow wedge, upwards from the centre, with soft edges.
+        # The shadow covers (1 - amount) of the disc, so "30 % closed" shows
+        # 30 % of the glow: how Justin reads it (21 Oct 2026), and a wider
+        # sweep than a real 6E5 ever had.
+        shadow_deg = 360.0 * (1.0 - amount)
+        if shadow_deg > 0.5:
             wedge = Image.new("L", (s, s), 0)
-            reach = r * 3.0           # well past the rim, so the edges meet the glass
-            pts = [(c, c),
-                   (c - reach * math.sin(half), c - reach * math.cos(half)),
-                   (c + reach * math.sin(half), c - reach * math.cos(half))]
-            ImageDraw.Draw(wedge).polygon(pts, fill=255)
+            R = r * 1.5
+            ImageDraw.Draw(wedge).pieslice([c - R, c - R, c + R, c + R],
+                                           -90 - shadow_deg / 2.0, -90 + shadow_deg / 2.0, fill=255)
             wedge = wedge.filter(ImageFilter.GaussianBlur(1.5 * SS))
             shadow = Image.new("RGBA", (s, s), (10, 40, 18, 255))
             mask = Image.new("L", (s, s), 0)
