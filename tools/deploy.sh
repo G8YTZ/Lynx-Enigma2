@@ -22,10 +22,9 @@ COPYFILE_DISABLE=1 tar -C "$STAGE" -cf - . | \
     ssh root@"$BOX" "mkdir -p $DEST && rm -rf $DEST/__pycache__ && tar -m -C $DEST -xf -"
 echo "Copied to $BOX:$DEST"
 if [ -n "$RESTART" ]; then
-    # OpenWebif's "restart GUI" works whatever the box's init system; if
-    # OpenWebif is not there, do it over SSH (/sbin is not on SSH's PATH).
-    if ! curl -fsS -m 5 "http://$BOX/api/powerstate?newstate=3" >/dev/null 2>&1; then
-        ssh root@"$BOX" "/sbin/init 4; sleep 3; /sbin/init 3"
-    fi
+    # /sbin is not on the box's PATH over SSH, hence the full paths.
+    # Stop the GUI, clear any copies left by tools/foreground.sh, start it
+    # again. Two copies at once fight over screen and tuner and hang the box.
+    ssh root@"$BOX" "/sbin/init 4; sleep 2; killall -9 enigma2 2>/dev/null; sleep 1; /sbin/init 3"
     echo "GUI restarting; the plugin is under Plugins as UK ATV Repeaters."
 fi

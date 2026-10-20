@@ -15,7 +15,7 @@ British English, metric. No long dashes (use a colon, semicolon, comma, brackets
   - `plugin.py`: Descriptor, Plugins menu and Extensions menu.
 - `data/repeaters.json`: 31 repeaters, 27 watchable outputs. `tools/deploy.sh` copies it beside the plugin.
 - `tests/test_plugin.py`: List and tuner logic against stand-ins for Enigma2 (`tests/fake_enigma.py`).
-- Next: **First run on the box** (`tools/deploy.sh`, then watch GB3OO; read `/home/root/logs/` or run `init 4; enigma2` over SSH for the traceback if it fails). Things only the box can confirm: `eComponentScan` signal hookup on this OpenATV, that `newService` fires on a rescan of a known transponder, the SNR key, skin look. Then plan step 5.
+- Next: **First run on the box** (`tools/deploy.sh`, then watch GB3OO; `tools/foreground.sh` for the traceback if it fails). Things only the box can confirm: `eComponentScan` signal hookup on this OpenATV, that `newService` fires on a rescan of a known transponder, the SNR key, skin look. Then plan step 5.
 
 ## The test box
 
@@ -60,4 +60,4 @@ Oscillators are per-band settings. 13 cm (GB3TZ) is out. Analogue outputs and an
 4. Settings: locator, per-band LNB oscillator, LNB voltage (13/18 V).
 5. List update from GitHub; then an installable `.ipk`, then a ready-made box image to sell. Justin would be the support desk: keep set-up minimal.
 
-Test by running `tools/deploy.sh [box]` on Justin's Mac: it copies the plugin and list to `/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters/` and restarts the GUI via OpenWebif (`/api/powerstate?newstate=3`), falling back to `/sbin/init 4; /sbin/init 3` over SSH. **SSH's PATH on the box has no `/sbin`**: use full paths. The box's clock was about 5 years slow on 20 Oct 2026.
+Test by running `tools/deploy.sh [box]` on Justin's Mac: it copies the plugin and list to `/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters/` and restarts the GUI (`/sbin/init 4`, `killall -9 enigma2`, `/sbin/init 3`), clearing stray `enigma2` copies. `tools/foreground.sh` runs the GUI in the terminal for tracebacks (log in `~/lynx-run.log`); **never leave a foreground `enigma2` running**: three copies at once hung the box on 20 Oct. **SSH's PATH on the box has no `/sbin`**: use full paths. The box's clock was about 5 years slow on 20 Oct 2026.
