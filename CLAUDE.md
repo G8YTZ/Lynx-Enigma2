@@ -60,6 +60,7 @@ Oscillators are per-band settings. 13 cm (GB3TZ) is out. Analogue outputs and an
 - Plan: the repo holds the checked list; a generator only *flags* changes (ETCC status/frequency, BATC edits) for a person to accept.
 - Later: blind scan (the RS6060 supports it) could find an unknown symbol rate in one pass instead of the hunt.
 - Later: ERP and height + distance to rank "likely receivable", not just nearest.
+- **Later, external tuners (Justin, 20 Oct 2026; parked):** the H11S's own driver will never report MODCOD, so use a BATC tuner for real MER/MODCOD and symbol rates below 1000 kS/s (GB3FT 500, GB3NQ's 333 output). (a) **Network Picotuner** (Justin has one): tune over UDP as Lynx Rx does, play its TS over UDP with gstplayer, read MER/lock from its status ports (9901 MER/margin/level, 9997 lock/callsign/frequency, per Lynx Rx); smaller job, nothing to compile. (b) **MiniTiouner on the Zgemma's USB** with longmynd built for ARM on the box; bigger.
 
 ## Plugin plan
 
