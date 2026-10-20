@@ -90,6 +90,10 @@ def _scale(skin):
 # a menu, settings or the Lynx bar closes.
 CHILD_CLOSED_GRACE_S = 0.6
 
+# With something playing, the list gets out of the way after this long
+# untouched, back to the picture and the Lynx bar (Justin's idea).
+LIST_IDLE_MS = 10000
+
 # How long a stream player gets to produce a picture before the next is tried.
 STREAM_PICTURE_MS = 8000
 STREAM_CHECK_MS = 500
@@ -148,6 +152,8 @@ class RepeaterList(Screen):
         self.tuner = RepeaterTuner(session, self._progress, self._tuned)
         self.stream_timer, self._st = _timer(self._check_stream)
         self.bar = None                   # the Lynx bar while it is open
+        self.idle_timer, self._it = _timer(self._idle)
+        self.onClose.append(self.idle_timer.stop)
         self.onClose.append(self.stream_timer.stop)
         self["list"] = List([])
         self["where"] = Label()
@@ -169,6 +175,7 @@ class RepeaterList(Screen):
             "menu": self.menu,
         }, -1)
         self["list"].onSelectionChanged.append(self._selected)
+        self["list"].onSelectionChanged.append(self._touched)
         self.data = repeaters.load()
         self.sync = sync.get()
         self.sync.listeners.append(self.refresh)
@@ -332,8 +339,21 @@ class RepeaterList(Screen):
     def _bar_closed(self, leave=False):
         self.bar = None
         self._child_closed()
+        self._touched()
         if leave:
             self.close()
+
+    def _touched(self):
+        """Any use of the list: start its 10 s again if something is playing."""
+        self.idle_timer.stop()
+        if self.watching and self.bar is None:
+            self.idle_timer.start(LIST_IDLE_MS, True)
+
+    def _idle(self):
+        if self.session.current_dialog is not self:
+            return                       # a menu or settings is open: leave it be
+        if self.watching and self.bar is None and not self.tuner.busy and not self.stream_timer.isActive():
+            self._show(self.watching)
 
     def back(self):
         """EXIT or red on the list: stop a tune in progress, never leave
@@ -346,6 +366,8 @@ class RepeaterList(Screen):
             self["status"].setText(_("Stopped"))
             self["key_red"].setText("")
             return
+        if self.watching:
+            return self._show(self.watching)     # back to the picture
         self["status"].setText(_("To leave Lynx: MENU, then Leave Lynx"))
 
     def leave(self):
@@ -379,6 +401,12 @@ class RepeaterList(Screen):
         self.stype = self.chain.pop(0)
         self.tried_players.append(self.stype)
         self.session.nav.playService(eServiceReference(streams.service_ref(e["stream"], self.stype)))
+        if not self.chain and len(self.tried_players) == 1:
+            # One player only (gstplayer): nothing to fall back to, so show
+            # the bar now rather than wait on a picture size it may not report.
+            self["status"].setText(_("Watching %s on the BATC streamer (%s)") % (
+                e["call"], streams.PLAYER_NAMES.get(self.stype, self.stype)))
+            return self._show(dict(e, locked_sr_ks=None, via_stream=True, player=self.stype))
         self.waited = 0
         self._say(_("%s stream: trying %s") % (e["call"], streams.PLAYER_NAMES.get(self.stype, self.stype)))
         self.stream_timer.start(STREAM_CHECK_MS, True)
@@ -412,10 +440,12 @@ class RepeaterList(Screen):
             choices.append((_("Check BATC for live streams now"), self.sync.refresh))
         choices.append((_("Settings"), self.settings))
         choices.append((_("Leave Lynx"), self.leave))
+        self.idle_timer.stop()
         self.session.openWithCallback(self._menu_chosen, ChoiceBox, title=_("Lynx"), list=choices)
 
     def _menu_chosen(self, choice):
         self._child_closed()
+        self._touched()
         if choice:
             choice[1]()
 
@@ -423,11 +453,13 @@ class RepeaterList(Screen):
 
     def settings(self):
         if not self.tuner.busy:
+            self.idle_timer.stop()
             self.session.openWithCallback(self._settings_closed, LynxSettings)
 
     def _settings_closed(self, *args):
         self._child_closed()
         self.refresh()
+        self._touched()
 
 
 class LynxBar(Screen):
