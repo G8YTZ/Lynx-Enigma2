@@ -8,14 +8,14 @@ British English, metric. No long dashes (use a colon, semicolon, comma, brackets
 
 ## Where it stands (20 Oct 2026)
 
-- `plugin/LynxRepeaters/`: The plugin (plan steps 1 to 4), **written but not yet run on the box.**
+- `plugin/LynxRepeaters/`: The plugin (plan steps 1 to 4). **Works on the box (20 Oct 2026):** Lynx-Tx on 1312 MHz at 1000 kS/s, picked as GB3EN in the list, scanned, locked and played. So `eComponentScan` hookup and `newService` work on this OpenATV.
   - `repeaters.py`: The arithmetic (band, LNB, box frequency, locator, distance, list rows). No Enigma2 imports.
   - `tuning.py`: `RepeaterTuner`: stop the service, `eComponentScan` of one transponder per symbol rate (flags keep the rest of the service list), collect refs from `newService`, play the first TV type; watchdog 20 s per rate. `signal()` reads SNR from `frontendInfo().getFrontendStatus()`.
   - `screens.py`: `RepeaterList` (OK/green watch, yellow hunt all rates, blue settings), `LynxBar` (bottom strip while watching), `LynxSettings` (`config.plugins.lynxrepeaters`). Skins drawn at 1920x1080, scaled by `_scale()`.
   - `plugin.py`: Descriptor, Plugins menu and Extensions menu.
 - `data/repeaters.json`: 31 repeaters, 27 watchable outputs. `tools/deploy.sh` copies it beside the plugin.
 - `tests/test_plugin.py`: List and tuner logic against stand-ins for Enigma2 (`tests/fake_enigma.py`).
-- Next: **First run on the box** (`tools/deploy.sh`, then watch GB3OO; `tools/foreground.sh` for the traceback if it fails). Things only the box can confirm: `eComponentScan` signal hookup on this OpenATV, that `newService` fires on a rescan of a known transponder, the SNR key, skin look. Then plan step 5.
+- Next: **First run on the box** (`tools/deploy.sh`, then watch GB3OO; `tools/foreground.sh` for the traceback if it fails). Still to confirm: that a rescan of a known transponder plays again, the SNR shown on the Lynx bar, the symbol-rate hunt, skin look. Then the hourly BATC stream list (same API as Lynx Rx: `https://batc.org.uk/live-api/stream_list.php`, played as `rtmp://rtmp.batc.org.uk/live/<stream_output_url>`), which needs the box's clock right for HTTPS (NTP not working yet). Then plan step 5.
 
 ## The test box
 
