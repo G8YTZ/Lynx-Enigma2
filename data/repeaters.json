@@ -241,11 +241,11 @@
    "outputs": [
     {
      "freq_mhz": 1318.0,
-     "mode": "DVB-S",
-     "sr_ks": 4000,
-     "fec": "1/2",
+     "mode": null,
+     "sr_ks": 2000,
+     "fec": null,
      "codec": null,
-     "source": "BATC wiki"
+     "source": "G8YTZ, 20 Oct 2026"
     }
    ]
   },
@@ -263,9 +263,9 @@
      "freq_mhz": 3404.0,
      "mode": "DVB-S2",
      "sr_ks": 2000,
-     "fec": "4/5",
+     "fec": "3/4",
      "codec": null,
-     "source": "BATC wiki"
+     "source": "G8YTZ, 20 Oct 2026"
     }
    ]
   },
@@ -305,11 +305,11 @@
     },
     {
      "freq_mhz": 1304.0,
-     "mode": null,
+     "mode": "digital",
      "sr_ks": null,
      "fec": null,
      "codec": null,
-     "source": "ETCC only"
+     "source": "G8YTZ, 20 Oct 2026: digital (too close to the band edge for analogue)"
     }
    ],
    "hours": "11:30 to 23:30"

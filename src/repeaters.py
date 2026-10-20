@@ -113,7 +113,7 @@ def watchable(repeaters: list[dict], lnb_osc: dict | None = None) -> list[dict]:
     out = []
     for r in repeaters:
         for o in r.get("outputs", []):
-            if o.get("mode") not in ("DVB-S", "DVB-S2", None):
+            if o.get("mode") not in ("DVB-S", "DVB-S2", "digital", None):
                 continue                      # analogue: the box cannot show it
             if o.get("sr_ks") and o["sr_ks"] < MIN_SR_KS:
                 continue                      # below what the tuner locks to
