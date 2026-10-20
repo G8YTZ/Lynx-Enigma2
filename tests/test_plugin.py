@@ -329,6 +329,23 @@ def test_no_tuner_set_up():
     finally:
         del sys.modules["Components"], sys.modules["Components.NimManager"]
 
+
+def test_waits_for_stream_to_let_go():
+    fe.WORLD.update(sr=2000, start=0)
+    s, log, result = Session(), [], []
+
+    class Ref(str):
+        def toString(self):
+            return str(self)
+    s.nav.getCurrentlyPlayingServiceReference = lambda: Ref("5001:0:1:0:0:0:0:0:0:0:rtmp%3a//rtmp.batc.org.uk/live/gb3en:GB3EN")
+    t = tuning.RepeaterTuner(s, log.append, lambda *a: result.append(a))
+    e = next(r for r in repeaters.rows(DATA) if r["call"] == "GB3OO")
+    fe.SCANS.clear()
+    t.tune(e)
+    assert fe.SCANS == [] and "letting the stream go" in log[0]          # nothing tuned yet
+    fe.run()
+    assert len(fe.SCANS) == 1 and result[0][0]                             # then it tunes and plays
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

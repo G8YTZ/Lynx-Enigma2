@@ -41,6 +41,12 @@ SCAN_FLAGS = (getattr(eComponentScan, "scanDontRemoveUnscanned", 16)
 # there is nothing to lock to. This is the backstop.
 SCAN_TIMEOUT_MS = 20000
 
+# After a stream (gstplayer or exteplayer3, separate programs on the box)
+# the video decoder is still held for a moment after the service stops; tune
+# too soon and the on-air picture stays frozen on the stream's last frame
+# (20 Oct 2026, OpenATV 8). So wait this long before tuning after a stream.
+STREAM_RELEASE_MS = 1500
+
 # DVB service types that carry video (SD, MPEG-2 HD, H.264 SD/HD, HEVC).
 VIDEO_TYPES = {0x01, 0x11, 0x16, 0x19, 0x1F, 0x20}
 RADIO_TYPES = {0x02, 0x0A}
@@ -134,6 +140,18 @@ def symbol_rates(entry, hunt=False):
     return rates
 
 
+def playing_stream(session):
+    """Whether what is playing now is an internet stream (not a DVB service,
+    whose references start with 1)."""
+    try:
+        nav = session.nav
+        get = getattr(nav, "getCurrentlyPlayingServiceOrGroup", None) or nav.getCurrentlyPlayingServiceReference
+        ref = get()
+        return bool(ref) and ref.toString().split(":", 1)[0] != "1"
+    except Exception:
+        return False
+
+
 def service_type(ref):
     try:
         return int(ref.split(":")[2], 16)
@@ -165,6 +183,7 @@ class RepeaterTuner:
         self._conns = []
         self.watchdog, self._wd = _timer(self._timeout)
         self.later, self._lt = _timer(self._after_scan)
+        self.settle, self._sl = _timer(self._next)
         self.busy = False
 
     def tune(self, entry, supply_v="13", hunt=False):
@@ -177,10 +196,16 @@ class RepeaterTuner:
             # Say what is wrong rather than report no signal at every rate.
             return self.done(None, None, NO_TUNER)
         self.busy = True
+        was_stream = playing_stream(self.session)
         self.session.nav.stopService()      # free the tuner for the scan
-        self._next()
+        if was_stream:
+            self.progress(_("Tuning %s: letting the stream go") % entry["call"])
+            self.settle.start(STREAM_RELEASE_MS, True)
+        else:
+            self._next()
 
     def cancel(self):
+        self.settle.stop()
         if self.busy:
             self._stop_scan()
             self.busy = False
