@@ -92,7 +92,8 @@ BUTTONS = """
   <eLabel position="760,{y}" size="8,44" backgroundColor="#00e6b800"/>
   <widget source="key_yellow" render="Label" position="776,{y}" size="400,44" font="Regular;30" valign="center" transparent="1"/>
   <eLabel position="1220,{y}" size="8,44" backgroundColor="#000060d0"/>
-  <widget source="key_blue" render="Label" position="1236,{y}" size="400,44" font="Regular;30" valign="center" transparent="1"/>
+  <widget source="key_blue" render="Label" position="1236,{y}" size="300,44" font="Regular;30" valign="center" transparent="1"/>
+  <eLabel text="MENU  More" position="1550,{y}" size="180,44" font="Regular;30" halign="right" valign="center" foregroundColor="#00c0c0c0" transparent="1"/>
 """
 
 
@@ -118,7 +119,8 @@ class RepeaterList(Screen):
   </widget>
   <eLabel position="1130,110" size="600,690" backgroundColor="#00222222"/>
   <widget name="call" position="1160,125" size="560,70" font="Regular;54" foregroundColor="#00ffffff" backgroundColor="#00222222"/>
-  <widget name="details" position="1160,205" size="550,580" font="Regular;28" foregroundColor="#00e0e0e0" backgroundColor="#00222222"/>
+  <widget name="live" position="1160,200" size="550,44" font="Regular;30" valign="center" foregroundColor="#00ffd200" backgroundColor="#00222222"/>
+  <widget name="details" position="1160,250" size="550,535" font="Regular;28" foregroundColor="#00e0e0e0" backgroundColor="#00222222"/>
   <widget name="status" position="30,815" size="1700,50" font="Regular;30" valign="center" foregroundColor="#00ffd200" backgroundColor="#00141414"/>
 """ + BUTTONS.format(y=880) + """
 </screen>""")
@@ -136,12 +138,13 @@ class RepeaterList(Screen):
         self["status"] = Label()
         self["key_red"] = StaticText(_("Close"))
         self["key_green"] = StaticText(_("Watch"))
-        self["key_yellow"] = StaticText(_("Hunt symbol rate"))
+        self["key_yellow"] = StaticText("")
+        self["live"] = Label()
         self["key_blue"] = StaticText(_("Settings"))
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions", "MenuActions"], {
             "ok": self.watch,
             "green": self.watch,
-            "yellow": self.hunt,
+            "yellow": self.watch_stream,
             "cancel": self.exit,
             "red": self.exit,
             "blue": self.settings,
@@ -190,6 +193,8 @@ class RepeaterList(Screen):
     def _selected(self):
         e = self._current()
         if not e:
+            self["live"].setText("")
+            self["key_yellow"].setText("")
             self["call"].setText("")
             self["details"].setText(_("No repeaters to show."))
             return
@@ -216,11 +221,11 @@ class RepeaterList(Screen):
         if e["band"] != "23cm":
             lines.append("")
             lines.append(_("Needs %s") % repeaters.BANDS[e["band"]][3])
-        if e.get("stream"):
-            lines.append("")
-            lines.append(_("Streaming now on BATC: MENU to watch"))
         self["call"].setText(e["call"])
         self["details"].setText("\n".join(lines))
+        live = bool(e.get("stream")) and not self.tuner.busy
+        self["live"].setText(_("Streaming now on BATC: yellow to watch") if e.get("stream") else "")
+        self["key_yellow"].setText(_("Watch stream") if live else "")
 
     # Watching
 
