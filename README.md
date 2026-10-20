@@ -37,11 +37,7 @@ Tested on a Zgemma H11S. Other Enigma2 boxes with a DVB-S2 tuner should work the
 
 3. **Time:** **Menu, Setup, System, Time**: time synchronisation by NTP. Lynx also puts the clock right after a power cut, since the box has no battery-backed clock.
 
-4. **Stream players:** ServiceApp with gstplayer and exteplayer3, from the box's own feed. On the box (how to reach it is under Installing Lynx, below):
-   ```
-   opkg update && opkg install enigma2-plugin-systemplugins-serviceapp gstplayer exteplayer3
-   ```
-   Without them the box's own player is used for streams, and on the H11S most streams then give sound without a picture.
+4. **Stream players:** Lynx's installer adds ServiceApp with gstplayer and exteplayer3 from the box's own feed, so there is nothing to do here. Without them the box's own player is used for streams, and on the H11S most streams then give sound without a picture.
 
 ## 2. Installing Lynx
 
@@ -54,21 +50,25 @@ The box's address is under **Menu, Setup, System, Network**. OpenATV's root logi
 
 Then, on the box:
 ```
+opkg update && opkg upgrade
 wget -qO- https://raw.githubusercontent.com/G8YTZ/Lynx-Enigma2/main/tools/install.sh | sh
 ```
-That downloads the latest Lynx from GitHub, installs it and restarts the box's GUI. Then open **Plugins, UK ATV Repeaters**, press **blue** for Settings, enter your locator (such as JO01 or JO01AJ), and switch on **Open Lynx at start-up** if the box is to be a repeater receiver first. Save with **green**.
+The first line brings the box's own software up to date. The second installs the stream players, downloads the latest Lynx from GitHub, installs it and restarts the box's GUI. Then open **Plugins, UK ATV Repeaters**, press **blue** for Settings, enter your locator (such as JO01 or JO01AJ), and switch on **Open Lynx at start-up** if the box is to be a repeater receiver first. Save with **green**.
 
 **From a PC instead** (for working on Lynx itself): clone this repository, or download it with GitHub's **Code, Download ZIP**, and from its folder run `tools/deploy.sh <box address>`. That copies your copy of Lynx to the box and restarts the GUI.
 
 ## 3. Updating
 
-**Lynx:** Run the same line on the box again:
+**Everything:** Run the same two lines on the box again:
 ```
+opkg update && opkg upgrade
 wget -qO- https://raw.githubusercontent.com/G8YTZ/Lynx-Enigma2/main/tools/install.sh | sh
 ```
+The first updates the box's own software (OpenATV, ServiceApp and the players); the second updates Lynx.
+
 Your settings stay as they are: they live in the box's own settings file, not with Lynx. The repeater list comes with Lynx, so updating Lynx updates the list too. The BATC stream list updates itself every hour.
 
-**The box's own software:** **Menu, Setup, Software Management, Software update** updates OpenATV, ServiceApp and the players from the feed. Lynx is not part of the feed, so an update leaves it alone; if Lynx ever goes missing after one, run the install line again.
+**From the remote instead:** **Menu, Setup, Software Management, Software update** does what the first line does. Lynx is not part of the feed, so a software update leaves it alone; if Lynx ever goes missing after one, run the second line again.
 
 **Removing Lynx,** on the box:
 ```

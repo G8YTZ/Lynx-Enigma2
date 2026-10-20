@@ -1,10 +1,14 @@
 #!/bin/sh
 # Lynx-Enigma2: install or update Lynx, run on the box itself.
 #
+#   opkg update && opkg upgrade
 #   wget -qO- https://raw.githubusercontent.com/G8YTZ/Lynx-Enigma2/main/tools/install.sh | sh
 #
-# Downloads the latest Lynx from GitHub, puts the plugin and the repeater
-# list in place, and restarts the GUI. Settings are kept: they live in the
+# (the first line brings the box's own software up to date first)
+#
+# Installs the stream players (ServiceApp, gstplayer, exteplayer3) from the
+# box's feed, downloads the latest Lynx from GitHub, puts the plugin and the
+# repeater list in place, and restarts the GUI. Settings are kept: they live in the
 # box's own settings file. Run it again at any time to update.
 #
 # Copyright (C) 2026 Justin Cockett, G8YTZ. GPL-2.0-or-later; see LICENSE.
@@ -13,6 +17,16 @@ set -e
 URL=${LYNX_TARBALL:-https://github.com/G8YTZ/Lynx-Enigma2/archive/refs/heads/main.tar.gz}
 DEST=${LYNX_DEST:-/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters}
 WORK=/tmp/lynx-install.$$
+
+# The stream players Lynx uses for BATC streams, from the box's own feed.
+# Already there: opkg leaves them alone. Not available: Lynx still works,
+# with the box's own player for streams.
+if [ -z "$LYNX_NO_PLAYERS" ] && command -v opkg >/dev/null 2>&1; then
+    echo "Lynx: making sure the stream players are installed"
+    opkg update >/dev/null 2>&1 || true
+    opkg install enigma2-plugin-systemplugins-serviceapp gstplayer exteplayer3 >/dev/null 2>&1 \
+        || echo "Lynx: could not install the stream players; streams will use the box's own player"
+fi
 
 echo "Lynx: downloading"
 rm -rf "$WORK"
