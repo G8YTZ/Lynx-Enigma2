@@ -291,11 +291,28 @@ class RepeaterList(Screen):
         self["status"].setText(_("Watching %s at %d kS/s") % (e["call"], sr_ks))
         self.session.openWithCallback(self._bar_closed, LynxBar, self.watching)
 
+    def _step(self, by):
+        """From the Lynx bar's CH+/CH-: the next repeater in the list, by
+        the same route as now where it has one (stream or on air)."""
+        was_stream = bool(self.watching and self.watching.get("via_stream"))
+        rows = self["list"].list
+        if not rows:
+            return
+        i = (self["list"].getIndex() + by) % len(rows)
+        self["list"].setIndex(i)
+        e = rows[i][0]
+        if e.get("stream_only") or (was_stream and e.get("stream")):
+            self.watch_stream()
+        else:
+            self.watch()
+
     def _child_closed(self):
         self.child_closed_at = time.time()
 
     def _bar_closed(self, leave=False):
         self._child_closed()
+        if leave in ("next", "prev"):
+            return self._step(1 if leave == "next" else -1)
         if leave:
             self.close()
 
@@ -395,7 +412,7 @@ class LynxBar(Screen):
   <widget name="where" position="620,8" size="620,70" font="Regular;36" valign="center" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
   <widget name="signal" position="1240,8" size="530,70" font="Regular;40" halign="right" valign="center" foregroundColor="#00ffd200" backgroundColor="#00141414"/>
   <widget name="tech" position="40,78" size="1200,44" font="Regular;28" valign="center" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
-  <eLabel text="OK hide   EXIT list   RED leave Lynx" position="1240,78" size="530,44" font="Regular;24" halign="right" valign="center" foregroundColor="#00909090" backgroundColor="#00141414"/>
+  <eLabel text="CH+/- next   OK hide   EXIT list   RED leave" position="1240,78" size="530,44" font="Regular;22" halign="right" valign="center" foregroundColor="#00909090" backgroundColor="#00141414"/>
 </screen>""")
 
     def __init__(self, session, entry):
@@ -410,6 +427,15 @@ class LynxBar(Screen):
             "ok": self.toggle,
             "cancel": lambda: self.close(False),
             "red": lambda: self.close(True),
+        }, -1)
+        # CH+/CH- and the up/down arrows step through Lynx's own list. The
+        # channel keys' action names differ between images, so all are bound.
+        nxt, prv = lambda: self.close("next"), lambda: self.close("prev")
+        self["zap"] = ActionMap(["DirectionActions", "InfobarChannelSelection", "ChannelSelectBaseActions"], {
+            "up": prv, "down": nxt,
+            "zapUp": prv, "zapDown": nxt,
+            "switchChannelUp": prv, "switchChannelDown": nxt,
+            "nextBouquet": nxt, "prevBouquet": prv,
         }, -1)
         self.visible = True
         self.timer, self._tc = _timer(self.update)
