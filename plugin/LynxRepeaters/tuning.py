@@ -337,7 +337,7 @@ def signal_text(session, margin=None):
         return _("No lock")
     if db is not None:
         if margin is not None:
-            return _("SNR %.1f dB  %+.1f") % (db, margin)
+            return _("SNR %.1f dB  margin %+.1f") % (db, margin)
         return _("SNR %.1f dB") % db
     return _("Signal %d%%") % q if q is not None else _("Locked")
 

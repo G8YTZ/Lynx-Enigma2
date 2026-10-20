@@ -396,12 +396,17 @@ def test_magic_eye():
     assert eye.margin_db(9.54, None, None) is None
     assert eye.closure(False, 19.0, 11.0) == 0.0                 # no lock: wide open, dark
     assert eye.closure(True, 19.0, 12.0) == 1.0                  # plenty in hand: closed
-    assert 0.4 < eye.closure(True, 9.5, 2.9) < 0.6               # the -39 dB point: half shut
     assert eye.closure(True, 10.0, None) == 0.5                  # MODCOD unknown: SNR alone
-    wide, shut = eye.draw(110, 0.0), eye.draw(110, 1.0)
-    assert any(r[4] == eye.SHADOW for r in wide) and not any(r[4] == eye.SHADOW for r in shut)
-    assert all(r[4] == eye.DARK for r in eye.draw(110, 0.5, lit=False))
-    assert all(0 <= r[0] and r[0] + r[2] <= 110 and 0 <= r[1] < 110 for r in wide)
+    # Justin's sweep, 21 Oct 2026 (8PSK 2/3): it must open steadily as he
+    # turns down, not sit closed until -30 dB as margin alone did.
+    sweep = [eye.closure(True, snr, eye.margin_db(snr, "8PSK", "2/3"), dbm)
+             for snr, dbm in ((19.03, -49), (19.03, -58), (19.03, -65), (17.55, -73), (9.03, -77))]
+    assert sweep == sorted(sweep, reverse=True) and sweep[0] > 0.9 and 0.5 < sweep[3] < 0.7 and sweep[4] < 0.4
+    assert eye.frame(0.0, True) == 0 and eye.frame(1.0, True) == eye.FRAMES - 1 and eye.frame(0.7, False) == "off"
+    here = os.path.join(HERE, "..", "plugin", "LynxRepeaters", "eye")
+    for folder in (here, os.path.join(here, "hd")):
+        names = ["eye_%02d.png" % n for n in range(eye.FRAMES)] + ["eye_off.png"]
+        assert all(os.path.exists(os.path.join(folder, n)) for n in names)
 
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):

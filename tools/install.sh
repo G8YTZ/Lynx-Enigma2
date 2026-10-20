@@ -49,6 +49,8 @@ mkdir -p "$DEST"
 rm -rf "$DEST/__pycache__"
 rm -f "$DEST"/*.pyc "$DEST"/*.pyo
 cp "$SRC"/*.py "$DEST/"
+rm -rf "$DEST/eye"
+cp -R "$SRC/eye" "$DEST/"
 cp "$TOP/data/repeaters.json" "$DEST/"
 
 if [ -n "$LYNX_NO_RESTART" ]; then

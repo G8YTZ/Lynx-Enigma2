@@ -86,7 +86,9 @@ rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters; /sbin/init 4; s
 - **Stream only:** Repeaters on the BATC streamer but not on the UK list (DB0OZ Bremen, say) are at the end; OK or yellow watches them.
 
 **The Lynx bar,** while watching:
-- **The magic eye:** Its dark wedge narrows as the signal improves above what the received modulation and FEC need, and closes at about 10 dB in hand. Wide open means you are at the edge; dark means no lock. Beside the SNR the margin shows as a figure, such as +8.0, and the level shows in dBm on the line below (uncalibrated: good for comparing antenna positions).
+- **The magic eye:** Its dark wedge narrows as the signal gets stronger and the margin grows, and closes on a strong, clean signal. Wide open means you are near the edge; dark means no lock.
+- **Margin:** Beside the SNR, how many dB the signal is above what its modulation and FEC need to decode. Around +3 is a working signal, +10 or more plenty in hand, below +1 at the edge of breaking up.
+- **Level:** In dBm on the line below. Uncalibrated, so good for comparing antenna positions; below about -77 dBm the tuner cannot tell any lower, and the margin is the better guide.
 - **CH+ and CH-** (or up and down): The next or previous repeater in the list, by the same route (on air or stream). Keep pressing to scroll; each press moves straight on.
 - **OK:** Hides or shows the bar.
 - **Yellow,** on a stream: Swaps between gstplayer and exteplayer3, for a stream that gives sound but no picture.

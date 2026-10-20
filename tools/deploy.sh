@@ -16,6 +16,7 @@ DEST=/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 cp "$HERE"/plugin/LynxRepeaters/*.py "$HERE/data/repeaters.json" "$STAGE/"
+cp -R "$HERE/plugin/LynxRepeaters/eye" "$STAGE/"
 # COPYFILE_DISABLE stops macOS tar adding ._ files; tar over ssh avoids
 # needing SFTP on the box; -m stops tar fussing when the box's clock is wrong.
 COPYFILE_DISABLE=1 tar -C "$STAGE" -cf - . | \

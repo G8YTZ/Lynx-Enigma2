@@ -11,8 +11,9 @@ shadow wedge that closes as the signal improves. It is driven by the margin:
 the SNR above what the locked MODCOD needs to decode, which is what matters
 when pointing an antenna (a plain level is fooled by noise or overload).
 
-Drawing is a list of filled rectangles, two pixel rows at a time, for
-Enigma2's Canvas renderer. No Enigma2 imports, so it tests on any PC.
+The pictures are drawn on a PC by tools/make_eye.py (smoothed, with
+transparency) and the plugin flips between them. draw() below is the old
+rectangle drawing, kept only as a fallback. No Enigma2 imports here.
 """
 from __future__ import absolute_import, division, print_function
 
@@ -54,16 +55,42 @@ def margin_db(snr_db, modulation=None, fec=None):
     return snr_db - need
 
 
-def closure(locked, snr_db, margin):
-    """0 (wide open) to 1 (closed). With no MODCOD known, the SNR alone:
-    closed at 20 dB."""
+# The level half: where the eye starts to close and where it is shut.
+LEVEL_OPEN_DBM = -80.0
+LEVEL_SHUT_DBM = -45.0
+MARGIN_OPEN_DB = -3.0
+
+
+def _part(value, lo, hi):
+    return max(0.0, min(1.0, (value - lo) / float(hi - lo)))
+
+
+def closure(locked, snr_db, margin, dbm=None):
+    """0 (wide open) to 1 (closed). Half from the margin, which tells you
+    about the edge of decoding but tops out once the transmitter's own
+    quality limits the SNR (Lynx-Tx: about 19 dB, so +11 dB already at
+    -30 dB on 21 Oct 2026); half from the level, which keeps rising with the
+    signal but bottoms out near the edge. Without a level, the margin
+    alone; without a MODCOD either, the SNR alone (closed at 20 dB)."""
     if not locked or snr_db is None:
         return 0.0
     if margin is None:
-        return max(0.0, min(1.0, snr_db / 20.0))
-    # The edge of decoding sits a third of the way in, so a weak but
-    # watchable signal already shows.
-    return max(0.0, min(1.0, (margin + 5.0) / (CLOSED_AT_DB + 5.0)))
+        m = _part(snr_db, 0.0, 20.0)
+    else:
+        m = _part(margin, MARGIN_OPEN_DB, CLOSED_AT_DB)
+    if dbm is None:
+        return m
+    return 0.5 * m + 0.5 * _part(dbm, LEVEL_OPEN_DBM, LEVEL_SHUT_DBM)
+
+
+FRAMES = 25   # eye/eye_00.png (open) to eye_24.png (closed), and eye_off.png
+
+
+def frame(amount, lit):
+    """Which picture to show: "off", or 0 to FRAMES - 1."""
+    if not lit:
+        return "off"
+    return int(round(max(0.0, min(1.0, amount)) * (FRAMES - 1)))
 
 
 def _cut(a, b, holes):
