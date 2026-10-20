@@ -37,45 +37,42 @@ Tested on a Zgemma H11S. Other Enigma2 boxes with a DVB-S2 tuner should work the
 
 3. **Time:** **Menu, Setup, System, Time**: time synchronisation by NTP. Lynx also puts the clock right after a power cut, since the box has no battery-backed clock.
 
-4. **Stream players:** ServiceApp with gstplayer and exteplayer3, from the box's own feed. From a PC:
+4. **Stream players:** ServiceApp with gstplayer and exteplayer3, from the box's own feed. On the box (how to reach it is under Installing Lynx, below):
    ```
-   ssh root@<box> 'opkg update && opkg install enigma2-plugin-systemplugins-serviceapp gstplayer exteplayer3'
+   opkg update && opkg install enigma2-plugin-systemplugins-serviceapp gstplayer exteplayer3
    ```
    Without them the box's own player is used for streams, and on the H11S most streams then give sound without a picture.
 
 ## 2. Installing Lynx
 
-You need a Mac or Linux PC (on Windows, use WSL) with `git` and `ssh`, on the same network as the box. The box's root login over SSH has no password by default.
+Lynx installs from the box itself, over the network. You need a way to type commands on the box:
 
-1. **Get Lynx:**
-   ```
-   git clone https://github.com/G8YTZ/Lynx-Enigma2.git
-   cd Lynx-Enigma2
-   ```
-   The repository is private for now: ask G8YTZ for access.
+- **Mac or Linux:** Open Terminal and type `ssh root@<box address>`.
+- **Windows 10 or 11:** Open PowerShell and type the same.
 
-2. **Put it on the box:**
-   ```
-   tools/deploy.sh <box address>
-   ```
-   This copies Lynx to `/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters/` and restarts the box's GUI.
+The box's address is under **Menu, Setup, System, Network**. OpenATV's root login has no password; answer `yes` if asked whether to trust the box the first time.
 
-3. **First run:** Open **Plugins, UK ATV Repeaters**. Press **blue** for Settings, enter your locator (such as JO01 or JO01AJ), and switch on **Open Lynx at start-up** if the box is to be a repeater receiver first. Save with **green**.
+Then, on the box:
+```
+wget -qO- https://raw.githubusercontent.com/G8YTZ/Lynx-Enigma2/main/tools/install.sh | sh
+```
+That downloads the latest Lynx from GitHub, installs it and restarts the box's GUI. Then open **Plugins, UK ATV Repeaters**, press **blue** for Settings, enter your locator (such as JO01 or JO01AJ), and switch on **Open Lynx at start-up** if the box is to be a repeater receiver first. Save with **green**.
+
+**From a PC instead** (for working on Lynx itself): clone this repository, or download it with GitHub's **Code, Download ZIP**, and from its folder run `tools/deploy.sh <box address>`. That copies your copy of Lynx to the box and restarts the GUI.
 
 ## 3. Updating
 
-**Lynx:** In the `Lynx-Enigma2` folder on the PC:
+**Lynx:** Run the same line on the box again:
 ```
-git pull
-tools/deploy.sh <box address>
+wget -qO- https://raw.githubusercontent.com/G8YTZ/Lynx-Enigma2/main/tools/install.sh | sh
 ```
-Your settings stay as they are: they live in the box's own settings file, not in the plugin folder. The repeater list comes with Lynx, so updating Lynx updates the list too. The BATC stream list updates itself every hour.
+Your settings stay as they are: they live in the box's own settings file, not with Lynx. The repeater list comes with Lynx, so updating Lynx updates the list too. The BATC stream list updates itself every hour.
 
-**The box's own software:** **Menu, Setup, Software Management, Software update** updates OpenATV, ServiceApp and the players from the feed. Lynx is not part of the feed, so an update leaves it alone; if Lynx ever goes missing after one, run `tools/deploy.sh` again.
+**The box's own software:** **Menu, Setup, Software Management, Software update** updates OpenATV, ServiceApp and the players from the feed. Lynx is not part of the feed, so an update leaves it alone; if Lynx ever goes missing after one, run the install line again.
 
-**Removing Lynx:**
+**Removing Lynx,** on the box:
 ```
-ssh root@<box> 'rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters; /sbin/init 4; sleep 2; /sbin/init 3'
+rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters; /sbin/init 4; sleep 2; /sbin/init 3
 ```
 
 ## 4. Using Lynx
@@ -103,7 +100,11 @@ ssh root@<box> 'rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters;
 - **"No tuner set up":** Tuner A is not configured; see step 2 of setting up.
 - **"No signal" on a repeater you can receive:** Its listed symbol rate may be wrong. Use **MENU, Watch ... trying every symbol rate**.
 - **Sound but no picture on a stream:** Press **yellow** on the bar to try the other player, or select the stream again: these players can miss the picture when they join a stream between keyframes. A stream whose keyframes are far apart (GB3NQ, October 2026) can stay sound-only; that is for its keeper to fix.
-- **Lynx's log:** `ssh root@<box> cat /tmp/lynx.log` (cleared at each restart).
+- **Lynx's log:** On the box, `cat /tmp/lynx.log` (cleared at each restart). Include it when reporting a problem.
+
+## Help and feedback
+
+Report problems and ideas on the [GitHub issues page](https://github.com/G8YTZ/Lynx-Enigma2/issues), with your box, its OpenATV version (**Menu, Information, About**) and Lynx's log. Repeater details that are wrong are welcome too: the list is checked against the RSGB ETCC list and the BATC wiki, but symbol rates in particular change.
 
 ## For developers
 
