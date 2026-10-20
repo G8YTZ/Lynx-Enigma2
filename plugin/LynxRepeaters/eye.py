@@ -38,7 +38,7 @@ S2_REQUIRED_DB = {
 # Margin (dB) at which the eye is fully closed, and the shadow's half-angle
 # (degrees) when wide open.
 CLOSED_AT_DB = 10.0
-OPEN_HALF_DEG = 55.0
+OPEN_HALF_DEG = 80.0
 
 GLOW = 0x5CFF7E          # the bright green of the target
 RIM = 0x1E8A3C           # darker towards the edge
@@ -86,11 +86,19 @@ def closure(locked, snr_db, margin, dbm=None):
 FRAMES = 25   # eye/eye_00.png (open) to eye_24.png (closed), and eye_off.png
 
 
+# The eye closes slowly at first and faster as the signal gets good, so a
+# weak signal still shows a wide shadow (Justin, 21 Oct 2026: at -40 dB,
+# amount 0.33, it looked 80 % closed with a linear sweep and a 110 degree
+# shadow; he wanted about 30 %).
+EYE_GAMMA = 1.6
+
+
 def frame(amount, lit):
     """Which picture to show: "off", or 0 to FRAMES - 1."""
     if not lit:
         return "off"
-    return int(round(max(0.0, min(1.0, amount)) * (FRAMES - 1)))
+    a = max(0.0, min(1.0, amount)) ** EYE_GAMMA
+    return int(round(a * (FRAMES - 1)))
 
 
 def _cut(a, b, holes):

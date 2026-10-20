@@ -19,7 +19,7 @@ OUT = os.path.join(HERE, "..", "plugin", "LynxRepeaters", "eye")
 SIZE = 110            # pixels at 1920 x 1080; Enigma2 scales for other outputs
 SS = 4                # drawn at four times the size, then shrunk
 FRAMES = 25           # 0 .. 24
-OPEN_HALF_DEG = 55.0  # the shadow's half-angle when wide open
+OPEN_HALF_DEG = 80.0  # the shadow's half-angle when wide open (160 degrees, as a 6E5)
 
 
 def lerp(a, b, t):
