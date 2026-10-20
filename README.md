@@ -17,6 +17,20 @@ A satellite receiver's tuner covers 950 to 2150 MHz, so 23 cm repeaters go strai
 
 LNB power stays on, to feed the small inline preamplifiers that run from it.
 
+## Setting up a box
+
+Tested on a Zgemma H11S. Other Enigma2 boxes with a DVB-S2 tuner should work the same way.
+
+1. **Use a current image:** OpenATV 7.6 or later. Older images (Python 2, 2021 and before) run Lynx, but their stream players miss the picture on many BATC streams. On a multiboot box such as the H11S, put the new image in a spare slot, so the old one stays as it was: **Menu, Setup, Software Management, Flash online**, choose OpenATV 7.6 for your box, then a free slot.
+2. **Tuner:** Tuner A set for a universal LNB at 19.2E (most boxes come this way). Lynx works out the frequencies; nothing needs changing for 23 cm.
+3. **Time:** **Menu, Setup, System, Time**, time synchronisation by NTP. Lynx also puts the clock right after a power cut, but the box should keep it too.
+4. **Stream players:** Install ServiceApp with gstplayer and exteplayer3, from the box's own feed:
+   ```
+   opkg update
+   opkg install enigma2-plugin-systemplugins-serviceapp gstplayer exteplayer3
+   ```
+5. **Lynx:** From a PC on the same network, `tools/deploy.sh <box address>`. Then open **Plugins, UK ATV Repeaters**, press blue for Settings, enter your locator, and switch on **Open Lynx at start-up** if the box is to be a repeater receiver first.
+
 ## Trying it
 
 From a Mac or Linux PC on the same network as the box:
@@ -36,7 +50,7 @@ That copies the plugin to `/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeat
 - While watching, the Lynx bar shows callsign, town, distance and live SNR. **CH+ and CH-** (or up and down) go to the next or previous repeater in Lynx's list, **OK** hides the bar, **EXIT** goes back to the list.
 - **Leaving Lynx:** Only through **MENU, Leave Lynx**, so a stray press never throws you out; what is playing carries on. On the list, EXIT or red (**Stop** or **Close menu**) stops a tune in progress, or takes you back to the picture; left alone for 10 seconds while something is playing, the list goes back to the picture by itself.
 
-For the BATC streams, install ServiceApp on the box first (`opkg install enigma2-plugin-systemplugins-serviceapp gstplayer exteplayer3`): Lynx then plays streams through gstplayer; if a stream gives sound but no picture, **yellow** on the Lynx bar swaps to exteplayer3 (and back).
+For the BATC streams, ServiceApp must be on the box (step 4 above): Lynx then plays streams through gstplayer; if a stream gives sound but no picture, **yellow** on the Lynx bar swaps to exteplayer3 (and back).
 
 Tests (on any PC): `python3 tests/test_plugin.py`
 
