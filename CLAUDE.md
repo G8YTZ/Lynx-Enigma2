@@ -23,7 +23,7 @@ Zgemma H11S, OpenATV, at **192.168.0.164** (it was .163; DHCP). Root SSH has no 
 
 **Python 2.7.16, no Python 3** (an older OpenATV, kernel from April 2021). All plugin code must run on Python 2.7 and 3: no type hints, f-strings or `open(encoding=)`; `from __future__ import absolute_import, division, print_function`; check with `parso==0.7.1` (`load_grammar(version="2.7")`). GStreamer 1.17 with `rtmpsrc` installed, so RTMP streams play as `4097:` services.
 
-**Its tuner driver echoes the request:** `frontendInfo().getAll(False)` after lock gives back FEC, pilot, inversion as auto and system/modulation as asked, so none of those are measured. Symbol rate is safe (it only locks if right); picture size comes from the decoder and is right (3840x2160 seen). The Lynx bar shows system, modulation and FEC only when the driver reports a real FEC.
+**Tuner:** Montage RS6060, DVB-S2X, blind scan supported (`/proc/bus/nim_sockets`). No demodulator status in `/proc/msp` or `/proc/stb/frontend/0` (only current limiting). **Its tuner driver echoes the request:** `frontendInfo().getAll(False)` after lock gives back FEC, pilot, inversion as auto and system/modulation as asked, so none of those are measured. Symbol rate is safe (it only locks if right); picture size comes from the decoder and is right (3840x2160 seen). The Lynx bar shows system, modulation and FEC only when the driver reports a real FEC.
 
 Proven on it: DVB-S2 on 23 cm straight into the satellite tuner, **1000 kS/s and up** (lower is unreliable). 19 dB SNR from Lynx-Tx at 2000 kS/s.
 
@@ -52,6 +52,7 @@ Oscillators are per-band settings. 13 cm (GB3TZ) is out. Analogue outputs and an
 - **Symbol rate and FEC** come from the BATC wiki per-repeater pages (free text, patchy; raw wikitext at `https://wiki.batc.org.uk/index.php?title=<CALL>&action=raw`) and from Justin's corrections (marked `"source": "G8YTZ, <date>"` in the JSON; they win). Unreadable/empty wiki pages so far: GB3DO, GB3FV, GB3FW, GB3TG, GB3TT, GB3TV, GB3XY.
 - This cloud session cannot fetch ukrepeater.net or the BATC wiki directly (and WebFetch refuses unseen URLs); ask Justin to run `curl` on his Mac and paste (`... | pbcopy`).
 - Plan: the repo holds the checked list; a generator only *flags* changes (ETCC status/frequency, BATC edits) for a person to accept.
+- Later: blind scan (the RS6060 supports it) could find an unknown symbol rate in one pass instead of the hunt.
 - Later: ERP and height + distance to rank "likely receivable", not just nearest.
 
 ## Plugin plan
