@@ -55,7 +55,7 @@ cfg.show_off = ConfigYesNo(default=False)
 cfg.autostart = ConfigYesNo(default=False)
 cfg.streams = ConfigYesNo(default=True)
 cfg.player = ConfigSelection(default="auto", choices=[
-    ("auto", _("Automatic (gstplayer, exteplayer3, then the box's own)")),
+    ("auto", _("Automatic (gstplayer if installed)")),
     ("exteplayer3", _("exteplayer3 (ServiceApp)")),
     ("gstplayer", _("gstplayer (ServiceApp)")),
     ("builtin", _("The box's own player"))])
