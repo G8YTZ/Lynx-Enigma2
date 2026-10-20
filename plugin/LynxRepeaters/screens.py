@@ -35,7 +35,6 @@ from Screens.Screen import Screen
 
 from . import repeaters, streams, sync
 from .eye import FRAMES as EYE_FRAMES, closure as eye_closure, frame as eye_frame, margin_db
-from .log import log
 from .tuning import level, signal
 from .tuning import RepeaterTuner, _timer, live, match_playing, signal_text, tech_text, title_text
 
