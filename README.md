@@ -22,6 +22,13 @@ LNB power stays on, to feed the small inline preamplifiers that run from it.
 Tested on a Zgemma H11S. Other Enigma2 boxes with a DVB-S2 tuner should work the same way.
 
 1. **Use a current image:** OpenATV 8 or later (7.x is end of life). Older images (Python 2, 2021 and before) run Lynx, but their stream players miss the picture on many BATC streams. On a multiboot box such as the H11S, put the new image in a spare slot, so the old one stays as it was: **Menu, Setup, Software Management, Flash online**, choose the newest OpenATV 8 build for your box, then a free slot.
+
+   Flash online needs a USB stick or disc to download to ("could not find suitable media" without one). Without one, flash from a PC over SSH instead, here for the H11S (find your box's newest `_multi.zip` at `images.mynonpublic.com/openatv/8.0/<box>/`):
+   ```
+   ssh root@<box> 'mkdir -p /home/root/flash && cd /home/root/flash && wget -O image.zip <multi.zip address> && unzip -o image.zip'
+   ssh root@<box> 'nohup /usr/bin/ofgwrite -r -k -m2 /home/root/flash/h11 > /home/root/flash/ofgwrite.log 2>&1 &'
+   ```
+   `-m2` writes slot 2 and leaves the others alone. When the screen says it flashed, use the **Multiboot Image Selector** to start slot 2, and work through the setup wizard (tuner A: universal LNB, Astra 19.2E; no channel scan needed).
 2. **Tuner:** Tuner A set for a universal LNB at 19.2E (most boxes come this way). Lynx works out the frequencies; nothing needs changing for 23 cm.
 3. **Time:** **Menu, Setup, System, Time**, time synchronisation by NTP. Lynx also puts the clock right after a power cut, but the box should keep it too.
 4. **Stream players:** Install ServiceApp with gstplayer and exteplayer3, from the box's own feed:
