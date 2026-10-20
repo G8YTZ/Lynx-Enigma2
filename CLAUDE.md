@@ -21,6 +21,8 @@ British English, metric. No long dashes (use a colon, semicolon, comma, brackets
 
 Zgemma H11S, OpenATV, at **192.168.0.164** (it was .163; DHCP). Root SSH has no password; OpenWebif API at `http://192.168.0.164/api/...` (`getcurrent`, `tunersignal`). Justin can run commands on it from his Mac. Back it up (OpenATV full image) before changing anything system-wide.
 
+**Python 2.7.16, no Python 3** (an older OpenATV, kernel from April 2021). All plugin code must run on Python 2.7 and 3: no type hints, f-strings or `open(encoding=)`; `from __future__ import absolute_import, division, print_function`; check with `parso==0.7.1` (`load_grammar(version="2.7")`). GStreamer 1.17 with `rtmpsrc` installed, so RTMP streams play as `4097:` services.
+
 Proven on it: DVB-S2 on 23 cm straight into the satellite tuner, **1000 kS/s and up** (lower is unreliable). 19 dB SNR from Lynx-Tx at 2000 kS/s.
 
 ## How Enigma2 sees 23 cm (measured on the box)
@@ -52,7 +54,7 @@ Oscillators are per-band settings. 13 cm (GB3TZ) is out. Analogue outputs and an
 
 ## Plugin plan
 
-1. Repeater screen (Enigma2 `Screen`, Python 3 on OpenATV): list by distance, status shown, 3 cm marked "needs a 9 GHz LNB".
+1. Repeater screen (Enigma2 `Screen`, Python 2.7 and 3): list by distance, status shown, 3 cm marked "needs a 9 GHz LNB".
 2. Tune: build the transponder, one-transponder scan, zap to the first TV service found; SR hunt if unknown.
 3. On screen: callsign, town, distance, signal (SNR from the frontend).
 4. Settings: locator, per-band LNB oscillator, LNB voltage (13/18 V).
