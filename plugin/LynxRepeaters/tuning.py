@@ -17,6 +17,8 @@ rates in turn until one gives a service.
 """
 from __future__ import absolute_import, division, print_function
 
+import os
+import subprocess
 import sys
 from numbers import Integral
 
@@ -46,6 +48,27 @@ SCAN_TIMEOUT_MS = 20000
 # too soon and the on-air picture stays frozen on the stream's last frame
 # (20 Oct 2026, OpenATV 8). So wait this long before tuning after a stream.
 STREAM_RELEASE_MS = 1500
+
+# ServiceApp's player programs. On OpenATV 8 stopping the service can leave
+# gstplayer2 running and holding the video decoder (seen 20 Oct 2026: on-air
+# sound, no picture, gstplayer2 still running minutes later), so Lynx ends
+# any that are left before it tunes on air.
+STREAM_PLAYERS = ("gstplayer2", "gstplayer", "exteplayer3")
+
+
+def end_stream_players():
+    """End any stream player program still running. True if one was."""
+    found = False
+    for name in STREAM_PLAYERS:
+        try:
+            if subprocess.call(["killall", name], stdout=_DEVNULL, stderr=_DEVNULL) == 0:
+                found = True
+                print("[LynxRepeaters] ended a leftover %s" % name)
+        except OSError:
+            pass                       # no killall here: nothing more to do
+    return found
+
+_DEVNULL = open(os.devnull, "w")
 
 # DVB service types that carry video (SD, MPEG-2 HD, H.264 SD/HD, HEVC).
 VIDEO_TYPES = {0x01, 0x11, 0x16, 0x19, 0x1F, 0x20}
@@ -198,6 +221,8 @@ class RepeaterTuner:
         self.busy = True
         was_stream = playing_stream(self.session)
         self.session.nav.stopService()      # free the tuner for the scan
+        if end_stream_players():
+            was_stream = True              # give the decoder time to come free
         if was_stream:
             self.progress(_("Tuning %s: letting the stream go") % entry["call"])
             self.settle.start(STREAM_RELEASE_MS, True)

@@ -332,6 +332,9 @@ def test_no_tuner_set_up():
 
 def test_waits_for_stream_to_let_go():
     fe.WORLD.update(sr=2000, start=0)
+    killed = []
+    real_call = tuning.subprocess.call
+    tuning.subprocess.call = lambda args, **kw: killed.append(args) or 1   # nothing left running
     s, log, result = Session(), [], []
 
     class Ref(str):
@@ -345,6 +348,8 @@ def test_waits_for_stream_to_let_go():
     assert fe.SCANS == [] and "letting the stream go" in log[0]          # nothing tuned yet
     fe.run()
     assert len(fe.SCANS) == 1 and result[0][0]                             # then it tunes and plays
+    assert ["killall", "gstplayer2"] in killed
+    tuning.subprocess.call = real_call
 
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
