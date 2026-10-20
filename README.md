@@ -21,7 +21,7 @@ LNB power stays on, to feed the small inline preamplifiers that run from it.
 
 Tested on a Zgemma H11S. Other Enigma2 boxes with a DVB-S2 tuner should work the same way.
 
-1. **Use a current image:** OpenATV 7.6 or later. Older images (Python 2, 2021 and before) run Lynx, but their stream players miss the picture on many BATC streams. On a multiboot box such as the H11S, put the new image in a spare slot, so the old one stays as it was: **Menu, Setup, Software Management, Flash online**, choose OpenATV 7.6 for your box, then a free slot.
+1. **Use a current image:** OpenATV 8 or later (7.x is end of life). Older images (Python 2, 2021 and before) run Lynx, but their stream players miss the picture on many BATC streams. On a multiboot box such as the H11S, put the new image in a spare slot, so the old one stays as it was: **Menu, Setup, Software Management, Flash online**, choose the newest OpenATV 8 build for your box, then a free slot.
 2. **Tuner:** Tuner A set for a universal LNB at 19.2E (most boxes come this way). Lynx works out the frequencies; nothing needs changing for 23 cm.
 3. **Time:** **Menu, Setup, System, Time**, time synchronisation by NTP. Lynx also puts the clock right after a power cut, but the box should keep it too.
 4. **Stream players:** Install ServiceApp with gstplayer and exteplayer3, from the box's own feed:
