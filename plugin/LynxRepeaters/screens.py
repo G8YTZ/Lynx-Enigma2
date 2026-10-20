@@ -154,7 +154,7 @@ class RepeaterList(Screen):
         self["call"] = Label()
         self["details"] = Label()
         self["status"] = Label()
-        self["key_red"] = StaticText(_("Close"))
+        self["key_red"] = StaticText("")          # "Stop" while tuning
         self["key_green"] = StaticText(_("Watch"))
         self["key_yellow"] = StaticText("")
         self["live"] = Label()
@@ -163,8 +163,8 @@ class RepeaterList(Screen):
             "ok": self.watch,
             "green": self.watch,
             "yellow": self.watch_stream,
-            "cancel": self.exit,
-            "red": self.exit,
+            "cancel": self.back,
+            "red": self.back,
             "blue": self.settings,
             "menu": self.menu,
         }, -1)
@@ -297,7 +297,7 @@ class RepeaterList(Screen):
             self.bar = self.session.openWithCallback(self._bar_closed, LynxBar, watching, self)
 
     def _tuned(self, ref, sr_ks, error):
-        self["key_red"].setText(_("Close"))
+        self["key_red"].setText("")
         e = self.tuning
         if not ref:
             self._say(_("%s: %s") % (e["call"], error))
@@ -335,15 +335,24 @@ class RepeaterList(Screen):
         if leave:
             self.close()
 
-    def exit(self):
+    def back(self):
+        """EXIT or red on the list: stop a tune in progress, never leave
+        Lynx. Leaving is MENU, Leave Lynx, so a stray press cannot do it."""
         if time.time() - getattr(self, "child_closed_at", 0) < CHILD_CLOSED_GRACE_S:
             return                       # the tail end of the EXIT that closed a menu
+        if self.tuner.busy or self.stream_timer.isActive():
+            self.stream_timer.stop()
+            self.tuner.cancel()
+            self["status"].setText(_("Stopped"))
+            self["key_red"].setText("")
+            return
+        self["status"].setText(_("To leave Lynx: MENU, then Leave Lynx"))
+
+    def leave(self):
+        """MENU, Leave Lynx: the one way out. What is playing carries on."""
         self.stream_timer.stop()
         if self.tuner.busy:
             self.tuner.cancel()
-            self["status"].setText(_("Stopped"))
-            self["key_red"].setText(_("Close"))
-            return
         if not self.watching and self.old_service and self._playing() is None:
             self.session.nav.playService(self.old_service)   # put back what was on
         self.close()
@@ -391,8 +400,6 @@ class RepeaterList(Screen):
 
     def menu(self):
         e = self._current()
-        if self.tuner.busy:
-            return
         choices = []
         if e and e.get("stream_only"):
             choices.append((_("Watch %s on the BATC streamer") % e["call"], self.watch_stream))
@@ -404,6 +411,7 @@ class RepeaterList(Screen):
         if cfg.streams.value:
             choices.append((_("Check BATC for live streams now"), self.sync.refresh))
         choices.append((_("Settings"), self.settings))
+        choices.append((_("Leave Lynx"), self.leave))
         self.session.openWithCallback(self._menu_chosen, ChoiceBox, title=_("Lynx"), list=choices)
 
     def _menu_chosen(self, choice):
@@ -430,7 +438,7 @@ class LynxBar(Screen):
   <widget name="where" position="620,8" size="620,70" font="Regular;36" valign="center" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
   <widget name="signal" position="1240,8" size="530,70" font="Regular;40" halign="right" valign="center" foregroundColor="#00ffd200" backgroundColor="#00141414"/>
   <widget name="tech" position="40,78" size="1200,44" font="Regular;28" valign="center" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
-  <eLabel text="CH+/- next   OK hide   EXIT list   RED leave" position="1240,78" size="530,44" font="Regular;22" halign="right" valign="center" foregroundColor="#00909090" backgroundColor="#00141414"/>
+  <eLabel text="CH+/- next   OK hide   EXIT list" position="1240,78" size="530,44" font="Regular;22" halign="right" valign="center" foregroundColor="#00909090" backgroundColor="#00141414"/>
 </screen>""")
 
     def __init__(self, session, entry, owner=None):
@@ -445,7 +453,6 @@ class LynxBar(Screen):
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
             "ok": self.toggle,
             "cancel": lambda: self.close(False),
-            "red": lambda: self.close(True),
         }, -1)
         # CH+/CH- and the up/down arrows step through Lynx's own list. The
         # channel keys' action names differ between images, so all are bound.
