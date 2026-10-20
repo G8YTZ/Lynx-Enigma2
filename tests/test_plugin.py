@@ -257,10 +257,14 @@ def test_stream_player_choice():
     from LynxRepeaters import streams
     d = tempfile.mkdtemp()
     streams.SERVICEAPP, streams.EXTEPLAYER3 = os.path.join(d, "ServiceApp"), os.path.join(d, "exteplayer3")
-    assert streams.player_type("auto") == 4097                 # nothing installed
+    streams.GSTPLAYER = os.path.join(d, "gstplayer")
+    assert streams.player_chain("auto") == [4097]              # nothing installed
     os.mkdir(streams.SERVICEAPP)
     open(streams.EXTEPLAYER3, "w").close()
-    assert streams.player_type("auto") == 5002
+    open(streams.GSTPLAYER, "w").close()
+    assert streams.player_chain("auto") == [4097, 5001, 5002]  # box's own first, as Justin asked
+    assert streams.player_type("auto") == 4097
+    assert streams.player_chain("exteplayer3") == [5002]
     assert streams.player_type("builtin") == 4097 and streams.player_type("gstplayer") == 5001
     s = {"name": "GB3HV", "url": "rtmp://rtmp.batc.org.uk/live/gb3hv"}
     assert streams.service_ref(s, 5002).startswith("5002:0:1:0:0:0:0:0:0:0:rtmp%3a//")

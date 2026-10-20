@@ -50,14 +50,28 @@ SERVICEAPP = "/usr/lib/enigma2/python/Plugins/SystemPlugins/ServiceApp"
 EXTEPLAYER3 = "/usr/bin/exteplayer3"
 
 
-def player_type(choice="auto"):
-    """The service type to play streams with. auto: exteplayer3 when
-    ServiceApp and exteplayer3 are installed, else the built-in player."""
+GSTPLAYER = "/usr/bin/gstplayer"
+PLAYER_NAMES = {4097: "the box's own player", 5001: "gstplayer", 5002: "exteplayer3"}
+
+
+def player_chain(choice="auto"):
+    """Service types to try in turn. auto: the box's own player first, then
+    gstplayer and exteplayer3 where ServiceApp has them; a named player
+    alone otherwise."""
     if choice in PLAYERS:
-        return PLAYERS[choice]
-    if os.path.isdir(SERVICEAPP) and os.path.exists(EXTEPLAYER3):
-        return PLAYERS["exteplayer3"]
-    return PLAYERS["builtin"]
+        return [PLAYERS[choice]]
+    chain = [PLAYERS["builtin"]]
+    if os.path.isdir(SERVICEAPP):
+        if os.path.exists(GSTPLAYER):
+            chain.append(PLAYERS["gstplayer"])
+        if os.path.exists(EXTEPLAYER3):
+            chain.append(PLAYERS["exteplayer3"])
+    return chain
+
+
+def player_type(choice="auto"):
+    """The first player to try: what the BATC Live channel list uses."""
+    return player_chain(choice)[0]
 
 
 _KEY = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")

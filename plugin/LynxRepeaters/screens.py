@@ -54,7 +54,7 @@ cfg.show_off = ConfigYesNo(default=False)
 cfg.autostart = ConfigYesNo(default=False)
 cfg.streams = ConfigYesNo(default=True)
 cfg.player = ConfigSelection(default="auto", choices=[
-    ("auto", _("Automatic (exteplayer3 if installed)")),
+    ("auto", _("Automatic (box's own, then gstplayer, then exteplayer3)")),
     ("exteplayer3", _("exteplayer3 (ServiceApp)")),
     ("gstplayer", _("gstplayer (ServiceApp)")),
     ("builtin", _("The box's own player"))])
@@ -83,6 +83,10 @@ def _scale(skin):
     skin = re.sub(r'gFont\("Regular",\s*\d+\)', lambda m: num(m.group(0)), skin)
     return re.sub(r'"itemHeight":\s*\d+', lambda m: num(m.group(0)), skin)
 
+
+# How long a stream player gets to produce a picture before the next is tried.
+STREAM_PICTURE_MS = 8000
+STREAM_CHECK_MS = 500
 
 RED = "#00d0021b"
 PANEL = "#00141414"
@@ -136,6 +140,8 @@ class RepeaterList(Screen):
         self.old_service = self._playing()
         self.watching = None              # the entry now on screen, if any
         self.tuner = RepeaterTuner(session, self._progress, self._tuned)
+        self.stream_timer, self._st = _timer(self._check_stream)
+        self.onClose.append(self.stream_timer.stop)
         self["list"] = List([])
         self["where"] = Label()
         self["call"] = Label()
@@ -242,6 +248,7 @@ class RepeaterList(Screen):
         if rec and rec.isRecording():
             self.session.open(MessageBox, _("The box is recording. Stop the recording first."), MessageBox.TYPE_INFO)
             return
+        self.stream_timer.stop()
         self.watching = None
         self.tuning = e
         self["key_red"].setText(_("Stop"))
@@ -268,6 +275,7 @@ class RepeaterList(Screen):
             self.close()
 
     def exit(self):
+        self.stream_timer.stop()
         if self.tuner.busy:
             self.tuner.cancel()
             self["status"].setText(_("Stopped"))
@@ -281,11 +289,41 @@ class RepeaterList(Screen):
         e = self._current()
         if not e or not e.get("stream") or self.tuner.busy:
             return
-        stype = streams.player_type(cfg.player.value)
-        self.session.nav.playService(eServiceReference(streams.service_ref(e["stream"], stype)))
-        self.watching = dict(e, locked_sr_ks=None, via_stream=True)
-        self["status"].setText(_("Watching %s on the BATC streamer") % e["call"])
-        self.session.openWithCallback(self._bar_closed, LynxBar, self.watching)
+        self.stream_entry = e
+        self.chain = streams.player_chain(cfg.player.value)
+        self.tried_players = []
+        self._next_player()
+
+    # A player that gives sound but no picture is still "playing", so judge
+    # by whether the decoder reports a picture size.
+
+    def _next_player(self):
+        e = self.stream_entry
+        if not self.chain:
+            first = self.tried_players[0]
+            self.session.nav.playService(eServiceReference(streams.service_ref(e["stream"], first)))
+            self["status"].setText(_("%s: no picture from any player (sound only?)") % e["call"])
+            return
+        self.stype = self.chain.pop(0)
+        self.tried_players.append(self.stype)
+        self.session.nav.playService(eServiceReference(streams.service_ref(e["stream"], self.stype)))
+        self.waited = 0
+        self["status"].setText(_("%s stream: trying %s") % (e["call"], streams.PLAYER_NAMES.get(self.stype, self.stype)))
+        self.stream_timer.start(STREAM_CHECK_MS, True)
+
+    def _check_stream(self):
+        e = self.stream_entry
+        if live(self.session).get("size"):
+            self.watching = dict(e, locked_sr_ks=None, via_stream=True, player=self.stype)
+            self["status"].setText(_("Watching %s on the BATC streamer (%s)") % (
+                e["call"], streams.PLAYER_NAMES.get(self.stype, self.stype)))
+            self.session.openWithCallback(self._bar_closed, LynxBar, self.watching)
+            return
+        self.waited += STREAM_CHECK_MS
+        if self.waited < STREAM_PICTURE_MS:
+            self.stream_timer.start(STREAM_CHECK_MS, True)
+        else:
+            self._next_player()
 
     # MENU: every choice in one place
 
