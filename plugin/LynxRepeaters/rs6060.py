@@ -16,8 +16,8 @@ holds the DVB-S2 MODCOD, laid out as on its Montage cousin the M88DS3103
   bits 0-3  code rate    bit 5  pilots    bits 6-7  modulation
 
 Confirmed on the box, 21 Oct 2026: 0x76 with Lynx-Tx sending 8PSK 3/4,
-pilots on; 0x75 after changing Lynx-Tx to 2/3. Not yet seen: QPSK (0 in
-bits 6-7 by the M88DS3103's map) and pilots off.
+pilots on; 0x75 after changing Lynx-Tx to 2/3; QPSK 3/4 read as QPSK 3/4.
+Pilots off not yet seen.
 
 Lynx only ever reads, one complete SMBus "read byte" transaction at a
 time, which the kernel serialises with the driver's own traffic, so it
