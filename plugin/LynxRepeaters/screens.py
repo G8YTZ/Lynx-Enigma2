@@ -35,6 +35,7 @@ from Screens.Screen import Screen
 
 from . import repeaters, streams, sync
 from .eye import FRAMES as EYE_FRAMES, closure as eye_closure, frame as eye_frame, margin_db
+from .log import log
 from .tuning import level, signal
 from .tuning import RepeaterTuner, _timer, live, match_playing, signal_text, tech_text, title_text
 
@@ -661,6 +662,8 @@ class LynxBar(Screen):
         if n == self.eye_shown:
             return                        # same picture: nothing to do
         self.eye_shown = n
+        log("eye %s: snr %s margin %s dbm %s mod %s fec %s target %.2f" % (
+            n, db, self._margin(db), dbm, self.modcod.get("modulation"), self.modcod.get("fec"), target))
         self["eye"].setPixmapNum(EYE_FRAMES if n == "off" else n)
 
     def update(self):
