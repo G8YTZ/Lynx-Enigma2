@@ -618,7 +618,10 @@ class LynxBar(Screen):
         if self.entry.get("via_stream"):
             return "   ".join([_("Internet stream from the BATC streamer")] +
                                (["%dx%d" % p["size"]] if p.get("size") else []))
-        return tech_text(self.entry["output"]["freq_mhz"], p, self.entry["locked_sr_ks"])
+        # The supply Lynx puts up the cable (set by polarisation): real, unlike
+        # the driver's echoed system, roll-off and FEC on this box.
+        return "%s   LNB %s V" % (tech_text(self.entry["output"]["freq_mhz"], p, self.entry["locked_sr_ks"]),
+                                 cfg.supply.value)
 
     def toggle(self):
         self.visible = not self.visible
