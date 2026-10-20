@@ -397,6 +397,13 @@ def live(session):
         v = _named(human, raw, key, table)
         if v:
             out[key.replace("_inner", "")] = v
+    if raw and not keys:
+        # The driver only echoed the request: ask the demodulator itself.
+        try:
+            from . import rs6060
+            out.update(rs6060.modcod())
+        except Exception:
+            pass
     try:
         info = service.info()
         name = info and info.getName()
@@ -429,6 +436,8 @@ def tech_text(freq_mhz, live_params, fallback_sr_ks=None):
         parts.append(mode)
     if p.get("fec"):
         parts.append("FEC " + p["fec"])
+    if p.get("pilots"):
+        parts.append("pilots")
     if p.get("size"):
         parts.append("%dx%d" % p["size"])
     return "   ".join(parts)

@@ -351,6 +351,37 @@ def test_waits_for_stream_to_let_go():
     assert ["killall", "gstplayer2"] in killed
     tuning.subprocess.call = real_call
 
+
+def test_rs6060_decode_and_find():
+    import tempfile
+    from LynxRepeaters import rs6060
+    assert rs6060.decode_s2(0x76) == {"system": "DVB-S2", "modulation": "8PSK", "fec": "3/4", "pilots": True}  # seen on the box
+    assert rs6060.decode_s2(0x05) == {"system": "DVB-S2", "modulation": "QPSK", "fec": "2/3", "pilots": False}
+    assert rs6060.decode_s2(0x00) == {} and rs6060.decode_s2(0x0F) == {}
+    d = tempfile.mkdtemp()
+    for e, name in (("i2c-2", "hi-i2c"), ("2-006b", "rs6060")):
+        os.mkdir(os.path.join(d, e))
+        open(os.path.join(d, e, "name"), "w").write(name + "\n")
+    assert rs6060.find(d) == (2, 0x6B)
+    assert rs6060.find(os.path.join(d, "nothing")) is None
+
+
+def test_bar_uses_demodulator_when_driver_echoes():
+    import types
+    from LynxRepeaters import rs6060
+    fe.mod.iServiceInformation = types.SimpleNamespace(sVideoWidth="w", sVideoHeight="h")
+    svc = FakeService()
+    svc.frontendInfo = lambda: EchoFE()
+    s = Session()
+    s.nav.getCurrentService = lambda: svc
+    real = rs6060.modcod
+    rs6060.modcod = lambda: rs6060.decode_s2(0x76)
+    try:
+        p = tuning.live(s)
+        assert tuning.tech_text(1304, p) == "1304 MHz   1000 kS/s   DVB-S2 8PSK   FEC 3/4   pilots   1920x1080"
+    finally:
+        rs6060.modcod = real
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):
