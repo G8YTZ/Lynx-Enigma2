@@ -12,6 +12,8 @@ waits on it; writing the channel list and reloading it happen back on
 Enigma2's own thread. If BATC cannot be reached the last list stays."""
 from __future__ import absolute_import, division, print_function
 
+from .log import log
+
 import os
 import subprocess
 import threading
@@ -39,10 +41,10 @@ def fix_clock():
         if os.path.exists(exe):
             try:
                 rc = subprocess.call([exe, "-b", NTP_SERVER])
-                print("[LynxRepeaters] clock was wrong; %s gave %d, now %s" % (exe, rc, time.ctime()))
+                log("clock was wrong; %s gave %d, now %s" % (exe, rc, time.ctime()))
                 return rc == 0
             except Exception as e:
-                print("[LynxRepeaters] clock: %s" % e)
+                log("clock: %s" % e)
     return False
 
 
@@ -73,7 +75,7 @@ class StreamSync(object):
                 from enigma import eDVBDB
                 eDVBDB.getInstance().reloadBouquets()
         except Exception as e:
-            print("[LynxRepeaters] BATC channel list: %s" % e)
+            log("BATC channel list: %s" % e)
 
     def start(self, delay_ms=FIRST_DELAY_MS):
         self.timer.start(delay_ms, True)
@@ -111,22 +113,22 @@ class StreamSync(object):
         kind, value = self._result
         self._result = None
         if kind == "error":
-            print("[LynxRepeaters] BATC stream list: %s" % value)
+            log("BATC stream list: %s" % value)
             return
         self.streams, self.fetched = value, time.time()
-        print("[LynxRepeaters] BATC stream list: %d live" % len(value))
+        log("BATC stream list: %d live" % len(value))
         try:
             streams.save(value)
             if streams.write_bouquet(value, stype=streams.player_type(self.player())):
                 from enigma import eDVBDB
                 eDVBDB.getInstance().reloadBouquets()
         except Exception as e:
-            print("[LynxRepeaters] BATC channel list: %s" % e)
+            log("BATC channel list: %s" % e)
         for fn in list(self.listeners):
             try:
                 fn()
             except Exception as e:
-                print("[LynxRepeaters] stream listener: %s" % e)
+                log("stream listener: %s" % e)
 
 
 def get():

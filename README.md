@@ -59,6 +59,8 @@ That copies the plugin to `/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeat
 
 For the BATC streams, ServiceApp must be on the box (step 4 above): Lynx then plays streams through gstplayer; if a stream gives sound but no picture, **yellow** on the Lynx bar swaps to exteplayer3 (and back).
 
+If something goes wrong, Lynx keeps its own log on the box: `ssh root@<box> cat /tmp/lynx.log`.
+
 Tests (on any PC): `python3 tests/test_plugin.py`
 
 ## Licence

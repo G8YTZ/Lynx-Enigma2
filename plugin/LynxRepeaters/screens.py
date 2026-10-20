@@ -15,6 +15,8 @@
 """
 from __future__ import absolute_import, division, print_function
 
+from .log import log
+
 import re
 import time
 
@@ -489,7 +491,7 @@ class RepeaterList(Screen):
         self._play_stream()
 
     def _diag(self):
-        print("[LynxRepeaters] video check %s: %s" % (self.stype, video_signs(self.session)))
+        log("video check %s: %s" % (self.stype, video_signs(self.session)))
         self.diag_left -= 1
         if self.diag_left > 0:
             self.diag_timer.start(1000, True)

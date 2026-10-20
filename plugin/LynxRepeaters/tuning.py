@@ -17,6 +17,8 @@ rates in turn until one gives a service.
 """
 from __future__ import absolute_import, division, print_function
 
+from .log import log
+
 import os
 import subprocess
 import sys
@@ -63,7 +65,7 @@ def end_stream_players():
         try:
             if subprocess.call(["killall", name], stdout=_DEVNULL, stderr=_DEVNULL) == 0:
                 found = True
-                print("[LynxRepeaters] ended a leftover %s" % name)
+                log("ended a leftover %s" % name)
         except OSError:
             pass                       # no killall here: nothing more to do
     return found
@@ -115,7 +117,7 @@ def find_tuner(orbpos=repeaters.BOX_ORBPOS):
     try:
         from Components.NimManager import nimmanager
     except Exception as e:
-        print("[LynxRepeaters] tuner search: %s" % e)
+        log("tuner search: %s" % e)
         return 0
     try:
         for slot in nimmanager.nim_slots:
@@ -124,7 +126,7 @@ def find_tuner(orbpos=repeaters.BOX_ORBPOS):
             if any(sat[0] == orbpos for sat in nimmanager.getSatListForNim(slot.slot)):
                 return slot.slot
     except Exception as e:            # an odd tuner set-up must not stop us
-        print("[LynxRepeaters] tuner search: %s" % e)
+        log("tuner search: %s" % e)
         return 0
     return None
 
@@ -261,7 +263,7 @@ class RepeaterTuner:
             ref = self.scan.getLastServiceRef()
             if ref and ref not in self.found:
                 self.found.append(ref)
-                print("[LynxRepeaters] found %s %s" % (ref, self.scan.getLastServiceName()))
+                log("found %s %s" % (ref, self.scan.getLastServiceName()))
 
     def _status(self):
         # Never tear the scan down from inside its own signal: do it next tick.
@@ -269,7 +271,7 @@ class RepeaterTuner:
             self.later.start(0, True)
 
     def _timeout(self):
-        print("[LynxRepeaters] scan timed out at %d kS/s" % self.sr)
+        log("scan timed out at %d kS/s" % self.sr)
         self._after_scan()
 
     def _after_scan(self):
@@ -377,8 +379,8 @@ def live(session):
         # Once per run: everything the tuner reports, to see what this
         # driver gives (the H11S's reports FEC as auto).
         _logged.append(1)
-        print("[LynxRepeaters] frontend data: %r" % (raw,))
-        print("[LynxRepeaters] readable: %r" % (human,))
+        log("frontend data: %r" % (raw,))
+        log("readable: %r" % (human,))
     sr = raw.get("symbol_rate")
     if isinstance(sr, Integral) and sr > 0:
         out["sr_ks"] = int(round(sr / 1000.0))
