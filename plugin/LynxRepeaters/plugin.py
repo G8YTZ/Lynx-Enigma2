@@ -22,9 +22,43 @@ def main(session, **kwargs):
     session.open(RepeaterList)
 
 
+# Opening at start-up: wait until the normal TV screen (InfoBar) is up and
+# nothing else, such as the first-boot wizard, is on top of it.
+_boot = {}
+BOOT_TRIES = 30            # one a second
+
+
+def _open_at_boot():
+    from Screens.InfoBar import InfoBar
+    from .screens import RepeaterList
+    session = _boot["session"]
+    bar = InfoBar.instance
+    if bar is not None and session.current_dialog is bar:
+        session.open(RepeaterList)
+        return
+    _boot["tries"] -= 1
+    if _boot["tries"] > 0:
+        _boot["timer"].start(1000, True)
+
+
+def sessionstart(reason, session=None, **kwargs):
+    if reason != 0 or session is None:
+        return
+    from . import screens
+    if not screens.cfg.autostart.value:
+        return
+    from .tuning import _timer
+    timer, conn = _timer(_open_at_boot)
+    _boot.update(session=session, timer=timer, conn=conn, tries=BOOT_TRIES)
+    timer.start(3000, True)
+
+
 def Plugins(**kwargs):
-    return [PluginDescriptor(
-        name=_("UK ATV Repeaters"),
-        description=_("Lynx: watch UK amateur TV repeaters"),
-        where=[PluginDescriptor.WHERE_PLUGINMENU, PluginDescriptor.WHERE_EXTENSIONSMENU],
-        fnc=main)]
+    return [
+        PluginDescriptor(where=PluginDescriptor.WHERE_SESSIONSTART, fnc=sessionstart),
+        PluginDescriptor(
+            name=_("UK ATV Repeaters"),
+            description=_("Lynx: watch UK amateur TV repeaters"),
+            where=[PluginDescriptor.WHERE_PLUGINMENU, PluginDescriptor.WHERE_EXTENSIONSMENU],
+            fnc=main),
+    ]

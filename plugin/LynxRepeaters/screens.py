@@ -50,6 +50,7 @@ cfg.supply = ConfigSelection(default="13", choices=[
 cfg.osc_9cm = ConfigInteger(default=repeaters.BANDS["9cm"][2], limits=(1, 20000))
 cfg.osc_3cm = ConfigInteger(default=repeaters.BANDS["3cm"][2], limits=(1, 20000))
 cfg.show_off = ConfigYesNo(default=False)
+cfg.autostart = ConfigYesNo(default=False)
 
 
 def lnb_osc():
@@ -323,6 +324,7 @@ class LynxSettings(ConfigListScreen, Screen):
             getConfigListEntry(_("9 cm LNB oscillator (MHz)"), cfg.osc_9cm),
             getConfigListEntry(_("3 cm LNB oscillator (MHz)"), cfg.osc_3cm),
             getConfigListEntry(_("Show repeaters listed as off air"), cfg.show_off),
+            getConfigListEntry(_("Open Lynx at start-up"), cfg.autostart),
         ]
         ConfigListScreen.__init__(self, items, session=session)
         self["help"] = Label(_("The LNB supply stays on to power inline preamplifiers. "
