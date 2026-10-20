@@ -305,8 +305,16 @@ def live(session):
     sr = raw.get("symbol_rate")
     if isinstance(sr, Integral) and sr > 0:
         out["sr_ks"] = int(round(sr / 1000.0))
-    for key, table in (("system", SYSTEM_NAMES), ("modulation", MODULATION_NAMES),
-                       ("fec_inner", FEC_NAMES)):
+    # Lynx always asks for FEC auto. A driver that still says auto after
+    # lock is echoing the request rather than reporting the demodulator
+    # (the H11S's does, 20 Oct 2026), so its system and modulation are only
+    # what Lynx asked for too: show none of them.
+    if raw.get("fec_inner") not in FEC_NAMES:
+        keys = ()
+    else:
+        keys = (("system", SYSTEM_NAMES), ("modulation", MODULATION_NAMES),
+                ("fec_inner", FEC_NAMES))
+    for key, table in keys:
         v = _named(human, raw, key, table)
         if v:
             out[key.replace("_inner", "")] = v

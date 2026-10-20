@@ -23,6 +23,8 @@ Zgemma H11S, OpenATV, at **192.168.0.164** (it was .163; DHCP). Root SSH has no 
 
 **Python 2.7.16, no Python 3** (an older OpenATV, kernel from April 2021). All plugin code must run on Python 2.7 and 3: no type hints, f-strings or `open(encoding=)`; `from __future__ import absolute_import, division, print_function`; check with `parso==0.7.1` (`load_grammar(version="2.7")`). GStreamer 1.17 with `rtmpsrc` installed, so RTMP streams play as `4097:` services.
 
+**Its tuner driver echoes the request:** `frontendInfo().getAll(False)` after lock gives back FEC, pilot, inversion as auto and system/modulation as asked, so none of those are measured. Symbol rate is safe (it only locks if right); picture size comes from the decoder and is right (3840x2160 seen). The Lynx bar shows system, modulation and FEC only when the driver reports a real FEC.
+
 Proven on it: DVB-S2 on 23 cm straight into the satellite tuner, **1000 kS/s and up** (lower is unreliable). 19 dB SNR from Lynx-Tx at 2000 kS/s.
 
 ## How Enigma2 sees 23 cm (measured on the box)

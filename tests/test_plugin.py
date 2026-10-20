@@ -149,6 +149,24 @@ def test_live_tech_line():
     assert tuning.tech_text(1312, {}, 2000) == "1312 MHz   2000 kS/s"
 
 
+class EchoFE:
+    """The H11S's driver: hands back what was asked for, FEC still auto."""
+    def getAll(self, original):
+        return {"symbol_rate": 1000000, "system": 1, "modulation": 1, "fec_inner": 0}
+
+
+def test_echoing_driver_shows_no_mode():
+    import types
+    fe.mod.iServiceInformation = types.SimpleNamespace(sVideoWidth="w", sVideoHeight="h")
+    svc = FakeService()
+    svc.frontendInfo = lambda: EchoFE()
+    s = Session()
+    s.nav.getCurrentService = lambda: svc
+    p = tuning.live(s)
+    assert p == {"sr_ks": 1000, "size": (1920, 1080)}
+    assert tuning.tech_text(1312, p) == "1312 MHz   1000 kS/s   1920x1080"
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):
