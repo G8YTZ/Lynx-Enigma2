@@ -358,6 +358,8 @@ def test_rs6060_decode_and_find():
     # 0x19 = 0x39 and 0x76 = 0x30 in the dump taken with Lynx-Tx on 8PSK 3/4, pilots, 0.35.
     assert rs6060.decode_pls(0x39, 0x30) == {"system": "DVB-S2", "modulation": "8PSK", "fec": "3/4",
                                              "pilots": True, "short_frames": False, "rolloff": "0.35"}
+    apsk = rs6060.decode_pls(0x4D, 0x32)                                        # live, 01:05
+    assert (apsk["modulation"], apsk["fec"], apsk["pilots"], apsk["rolloff"]) == ("16APSK", "3/4", True, "0.20")
     qpsk = rs6060.decode_pls((7 << 2) | 1, 0x32)
     assert (qpsk["modulation"], qpsk["fec"], qpsk["rolloff"]) == ("QPSK", "3/4", "0.20")
     assert rs6060.decode_pls(0x00) == {} and rs6060.decode_pls(0x85) == {}      # dummy frame, DVB-S2X
