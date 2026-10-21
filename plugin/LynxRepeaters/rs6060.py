@@ -21,7 +21,7 @@ m88rs6060_get_channel_info):
 Checked on the box, 21 Oct 2026, against Lynx-Tx: 8PSK 3/4 pilots 0.35
 gave 0x19 = 0x39 (MODCOD 14), 0x76 = 0x30; 16APSK 3/4 pilots 0.20 gave
 0x08 = 0x4f (DVB-S2), 0x19 = 0x4d (MODCOD 19), 0x76 = 0x32 (0.20).
-All three roll-offs then showed correctly on the Lynx bar.
+All three roll-offs, and pilots off, then showed correctly on the Lynx bar.
 (A first version read 0x7e in the M88DS3103 layout, which also reads
 right: 8PSK 3/4 and 2/3, QPSK 3/4 and 16APSK 3/4 all checked. These are the
 registers the maker's own driver uses, and they give roll-off and DVB-S.)
