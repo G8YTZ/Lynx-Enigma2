@@ -898,12 +898,22 @@ class ManualTune(ConfigListScreen, Screen):
         self["key_green"] = StaticText(_("Watch"))
         self["key_yellow"] = StaticText(_("Save preset"))
         self["lynx_actions"] = ActionMap(["SetupActions", "ColorActions"], {
+            "ok": self._ok,
             "save": self.watch,
             "green": self.watch,
             "yellow": self.keep,
             "cancel": lambda: self.close(None),
             "red": lambda: self.close(None),
         }, -2)
+
+    def _ok(self):
+        """OK watches, as it does on the list (Justin pressed OK and waited,
+        21 Oct 2026), except on the name, where it brings up the keyboard."""
+        cur = self["config"].getCurrent()
+        if cur and cur[1] is self.name:
+            ok = getattr(ConfigListScreen, "keyOK", None)
+            return ok(self) if ok else None
+        self.watch()
 
     def _sr(self):
         return None if self.sr.value == "any" else int(self.sr.value)
