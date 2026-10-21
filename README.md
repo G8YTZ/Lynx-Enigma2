@@ -6,6 +6,12 @@ Part of the Lynx family, with the [Lynx DATV Receiver](https://github.com/G8YTZ/
 
 **Status: Working, in testing.** Proven on a Zgemma H11S with OpenATV 8.0.1: 23 cm DVB-S2 straight into the box's satellite tuner from 1000 kS/s up, 4K HEVC on air, BATC streams, channel hopping between the two.
 
+**Tested on:**
+- **Zgemma H11S,** OpenATV 8.0.1: Everything, on air and streams (two boxes, October 2026).
+- **Zgemma H9S SE:** The repeater list and BATC streams, including the BATC Live channel list (October 2026). On air not yet reported.
+
+Tried it on another box? Please say how it went on the issues page.
+
 ## The idea
 
 A satellite receiver's tuner covers 950 to 2150 MHz, so 23 cm repeaters go straight in, and the box already decodes HEVC to HDMI. What it lacks is knowing where the repeaters are. Lynx adds:
