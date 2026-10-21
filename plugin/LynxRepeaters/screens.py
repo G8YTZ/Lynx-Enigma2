@@ -647,7 +647,8 @@ class LynxBar(Screen):
         return not (self.entry.get("via_stream") or self.entry.get("pending") or self.notice_text)
 
     def _margin(self, db):
-        return margin_db(db, self.modcod.get("modulation"), self.modcod.get("fec"))
+        return margin_db(db, self.modcod.get("modulation"), self.modcod.get("fec"),
+                         self.modcod.get("system", "DVB-S2"))
 
     def _eye(self):
         if not self.visible:

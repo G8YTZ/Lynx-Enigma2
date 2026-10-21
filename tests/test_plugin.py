@@ -355,9 +355,14 @@ def test_waits_for_stream_to_let_go():
 def test_rs6060_decode_and_find():
     import tempfile
     from LynxRepeaters import rs6060
-    assert rs6060.decode_s2(0x76) == {"system": "DVB-S2", "modulation": "8PSK", "fec": "3/4", "pilots": True}  # seen on the box
-    assert rs6060.decode_s2(0x05) == {"system": "DVB-S2", "modulation": "QPSK", "fec": "2/3", "pilots": False}
-    assert rs6060.decode_s2(0x00) == {} and rs6060.decode_s2(0x0F) == {}
+    # 0x19 = 0x39 and 0x76 = 0x30 in the dump taken with Lynx-Tx on 8PSK 3/4, pilots, 0.35.
+    assert rs6060.decode_pls(0x39, 0x30) == {"system": "DVB-S2", "modulation": "8PSK", "fec": "3/4",
+                                             "pilots": True, "short_frames": False, "rolloff": "0.35"}
+    qpsk = rs6060.decode_pls((7 << 2) | 1, 0x32)
+    assert (qpsk["modulation"], qpsk["fec"], qpsk["rolloff"]) == ("QPSK", "3/4", "0.20")
+    assert rs6060.decode_pls(0x00) == {} and rs6060.decode_pls(0x85) == {}      # dummy frame, DVB-S2X
+    assert rs6060.decode_s(2 << 5) == {"system": "DVB-S", "modulation": "QPSK", "fec": "3/4"}
+    assert rs6060.decode_s(7 << 5) == {}
     d = tempfile.mkdtemp()
     for e, name in (("i2c-2", "hi-i2c"), ("2-006b", "rs6060")):
         os.mkdir(os.path.join(d, e))
@@ -375,10 +380,10 @@ def test_bar_uses_demodulator_when_driver_echoes():
     s = Session()
     s.nav.getCurrentService = lambda: svc
     real = rs6060.modcod
-    rs6060.modcod = lambda: rs6060.decode_s2(0x76)
+    rs6060.modcod = lambda: rs6060.decode_pls(0x39, 0x30)
     try:
         p = tuning.live(s)
-        assert tuning.tech_text(1304, p) == "1304 MHz   1000 kS/s   DVB-S2 8PSK   FEC 3/4   pilots   1920x1080"
+        assert tuning.tech_text(1304, p) == "1304 MHz   1000 kS/s   DVB-S2 8PSK   FEC 3/4   pilots   roll-off 0.35   1920x1080"
     finally:
         rs6060.modcod = real
 
@@ -394,6 +399,7 @@ def test_magic_eye():
     from LynxRepeaters import eye
     assert round(eye.margin_db(9.54, "8PSK", "2/3"), 2) == 2.92
     assert eye.margin_db(9.54, None, None) is None
+    assert round(eye.margin_db(9.0, "QPSK", "3/4", "DVB-S"), 1) == 2.1
     assert eye.closure(False, 19.0, 11.0) == 0.0                 # no lock: wide open, dark
     assert eye.closure(True, 19.0, 12.0) == 1.0                  # plenty in hand: closed
     assert eye.closure(True, 10.0, None) == 0.5                  # MODCOD unknown: SNR alone

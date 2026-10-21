@@ -35,6 +35,10 @@ S2_REQUIRED_DB = {
     ("32APSK", "8/9"): 15.69, ("32APSK", "9/10"): 16.05,
 }
 
+# DVB-S (QPSK, Viterbi plus Reed-Solomon) Es/N0 for quasi-error-free
+# reception, ideal AWGN (EN 300 421 annex D Eb/N0 figures, converted).
+S_REQUIRED_DB = {"1/2": 4.1, "2/3": 5.9, "3/4": 6.9, "5/6": 7.9, "7/8": 8.4}
+
 # Margin (dB) at which the eye is fully closed, and the shadow's half-angle
 # (degrees) when wide open.
 CLOSED_AT_DB = 10.0
@@ -47,9 +51,12 @@ CAP = 0x262626           # the dark cap over the cathode
 DARK = 0x0F1A12          # unlit: no signal, or a stream
 
 
-def margin_db(snr_db, modulation=None, fec=None):
+def margin_db(snr_db, modulation=None, fec=None, system="DVB-S2"):
     """SNR above what the MODCOD needs, or None if the MODCOD is unknown."""
-    need = S2_REQUIRED_DB.get((modulation, fec))
+    if system == "DVB-S":
+        need = S_REQUIRED_DB.get(fec)
+    else:
+        need = S2_REQUIRED_DB.get((modulation, fec))
     if snr_db is None or need is None:
         return None
     return snr_db - need

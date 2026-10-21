@@ -454,6 +454,8 @@ def tech_text(freq_mhz, live_params, fallback_sr_ks=None):
         parts.append("FEC " + p["fec"])
     if p.get("pilots"):
         parts.append("pilots")
+    if p.get("rolloff"):
+        parts.append("roll-off " + p["rolloff"])
     if p.get("size"):
         parts.append("%dx%d" % p["size"])
     return "   ".join(parts)
