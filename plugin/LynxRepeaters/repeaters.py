@@ -195,3 +195,89 @@ def rows(repeaters, home=None,
         out.append(e)
     out.sort(key=lambda e: (e["km"] is None, e["km"] or 0, e["call"], e["output"]["freq_mhz"]))
     return out
+
+
+# Tuning by hand, and the presets saved from it.
+
+# The symbol rates offered when tuning by hand (Justin, 21 Oct 2026).
+MANUAL_SR_KS = (1000, 1500, 2000, 3000, 4000)
+
+# Kept beside the box's own settings, so a Lynx update leaves them alone.
+PRESETS = "/etc/enigma2/lynx_presets.json"
+
+
+def manual_entry(freq_mhz, sr_ks=None, name="", lnb_osc=None):
+    """A frequency typed in, shaped like a list entry so the tuner and the
+    Lynx bar treat it like any repeater. sr_ks None tries the common rates.
+    A frequency outside the amateur bands is taken as going straight into
+    the box. None if the box cannot tune it."""
+    lnb_osc = lnb_osc or {}
+    band = band_of(freq_mhz)
+    osc = lnb_osc.get(band, BANDS[band][2]) if band else 0
+    if not tunable(freq_mhz, osc):
+        return None
+    name = (name or "").strip()
+    return {
+        "call": name or "%g MHz" % freq_mhz,
+        "town": "Preset" if name else "Tuned by hand",
+        "locator": "", "keeper": None, "status": "on", "note": "",
+        "km": None, "approx": False, "manual": True, "preset": bool(name),
+        "output": {"freq_mhz": freq_mhz, "mode": None, "sr_ks": sr_ks, "fec": None,
+                   "codec": None, "source": "by hand"},
+        "band": band or "direct", "lnb_osc_mhz": osc,
+        "box_khz": box_frequency_khz(freq_mhz, osc),
+    }
+
+
+def _preset(p):
+    """A preset as saved, or None if it is not one."""
+    try:
+        name = str(p["name"]).strip()
+        freq = float(p["freq_mhz"])
+        sr = p.get("sr_ks")
+        sr = int(sr) if sr else None
+    except (KeyError, TypeError, ValueError):
+        return None
+    if not name or not TUNER_MIN <= freq <= 10500:
+        return None
+    return {"name": name, "freq_mhz": freq, "sr_ks": sr}
+
+
+def load_presets(path=PRESETS):
+    try:
+        with io.open(path, encoding="utf-8") as f:
+            raw = _native(json.load(f)).get("presets", [])
+    except (IOError, OSError, ValueError, AttributeError):
+        return []
+    return [p for p in (_preset(x) for x in raw) if p]
+
+
+def save_presets(presets, path=PRESETS):
+    """Written whole and then renamed into place, so a power cut mid-write
+    cannot leave half a file."""
+    tmp = path + ".new"
+    with open(tmp, "w") as f:
+        json.dump({"presets": presets}, f, indent=1, sort_keys=True)
+    os.rename(tmp, path)
+
+
+def put_preset(presets, preset, replacing=None):
+    """The list with this preset added, or put in place of the one called
+    `replacing` (an edit) or of one with the same name. Kept in the order
+    made, so the list does not jump about."""
+    names = set(n.lower() for n in (preset["name"], replacing or "") if n)
+    out, placed = [], False
+    for p in presets:
+        if p["name"].lower() in names:
+            if not placed:
+                out.append(preset)
+                placed = True
+        else:
+            out.append(p)
+    if not placed:
+        out.append(preset)
+    return out
+
+
+def drop_preset(presets, name):
+    return [p for p in presets if p["name"].lower() != name.lower()]

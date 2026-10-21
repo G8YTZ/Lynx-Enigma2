@@ -416,6 +416,41 @@ def test_magic_eye():
         names = ["eye_%02d.png" % n for n in range(eye.FRAMES)] + ["eye_off.png"]
         assert all(os.path.exists(os.path.join(folder, n)) for n in names)
 
+def test_manual_entry():
+    e = repeaters.manual_entry(1249, 1500)
+    assert e["call"] == "1249 MHz" and e["town"] == "Tuned by hand" and not e["preset"]
+    assert e["box_khz"] == 10999000 and e["band"] == "23cm" and e["output"]["sr_ks"] == 1500
+    assert tuning.symbol_rates(e) == [1500]
+    p = repeaters.manual_entry(1312, None, " Lynx-Tx ")
+    assert p["call"] == "Lynx-Tx" and p["preset"] and tuning.symbol_rates(p)[0] == 2000
+    assert repeaters.manual_entry(1500)["band"] == "direct"           # any IF straight in
+    assert repeaters.manual_entry(10400)["box_khz"] == (1400 + 9750) * 1000
+    assert repeaters.manual_entry(800) is None                        # below the tuner
+    assert repeaters.manual_entry(10400, lnb_osc={"3cm": 9750}) is None
+
+
+def test_presets(tmp=None):
+    import tempfile
+    path = os.path.join(tmp or tempfile.mkdtemp(), "lynx_presets.json")
+    assert repeaters.load_presets(path) == []
+    a = {"name": "Lynx-Tx", "freq_mhz": 1312.0, "sr_ks": 1000}
+    b = {"name": "Test", "freq_mhz": 1249.0, "sr_ks": None}
+    ps = repeaters.put_preset(repeaters.put_preset([], a), b)
+    ps = repeaters.put_preset(ps, dict(a, sr_ks=2000))               # same name: replaced in place
+    assert [p["name"] for p in ps] == ["Lynx-Tx", "Test"] and ps[0]["sr_ks"] == 2000
+    ps = repeaters.put_preset(ps, dict(b, name="Renamed"), replacing="test")
+    assert [p["name"] for p in ps] == ["Lynx-Tx", "Renamed"]
+    repeaters.save_presets(ps, path)
+    assert repeaters.load_presets(path) == ps
+    assert repeaters.drop_preset(ps, "lynx-tx") == ps[1:]
+    with open(path, "w") as f:
+        f.write('{"presets": [{"name": "", "freq_mhz": 1249}, {"name": "x", "freq_mhz": "y"}, {"oops": 1}]}')
+    assert repeaters.load_presets(path) == []
+    with open(path, "w") as f:
+        f.write("not json")
+    assert repeaters.load_presets(path) == []
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

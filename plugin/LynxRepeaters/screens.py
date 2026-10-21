@@ -8,7 +8,10 @@
 # any later version. See LICENSE.
 """Three screens:
 
-  RepeaterList   every repeater the box can show, nearest first; OK watches
+  RepeaterList   every repeater the box can show, nearest first, after your
+                 own presets; OK watches
+  ManualTune     a frequency and symbol rate typed in, watched or kept as a
+                 preset
   LynxBar        a strip along the bottom while watching: callsign, town,
                  distance, frequency, symbol rate and live SNR
   LynxSettings   locator, LNB supply voltage, per-band LNB oscillators
@@ -63,6 +66,12 @@ cfg.player = ConfigSelection(default="auto", choices=[
     ("exteplayer3", _("exteplayer3 (ServiceApp)")),
     ("gstplayer", _("gstplayer (ServiceApp)")),
     ("builtin", _("The box's own player"))])
+
+# Tuning by hand: the last frequency and symbol rate typed in.
+SR_CHOICES = [(str(r), "%g MS/s" % (r / 1000.0)) for r in repeaters.MANUAL_SR_KS] + [
+    ("any", _("Not sure: try them all"))]
+cfg.manual_freq = ConfigInteger(default=1249, limits=(950, 10500))
+cfg.manual_sr = ConfigSelection(default="1500", choices=SR_CHOICES)
 
 
 def video_signs(session):
@@ -243,6 +252,7 @@ class RepeaterList(Screen):
         self["list"].onSelectionChanged.append(self._selected)
         self["list"].onSelectionChanged.append(self._touched)
         self.data = repeaters.load()
+        self.presets = repeaters.load_presets()
         self.sync = sync.get()
         self.sync.listeners.append(self.refresh)
         self.onClose.append(lambda: self.sync.listeners.remove(self.refresh))
@@ -262,6 +272,15 @@ class RepeaterList(Screen):
         here = home()
         self.entries = repeaters.rows(self.data, here, lnb_osc(), cfg.show_off.value)
         rows = []
+        # Your own presets first: they are what you put there to find.
+        for p in self.presets:
+            e = repeaters.manual_entry(p["freq_mhz"], p["sr_ks"], p["name"], lnb_osc())
+            if not e:
+                continue                  # an LNB setting has put it out of reach
+            e["stream"] = self._stream_for(e)
+            sr = "%d kS/s" % p["sr_ks"] if p["sr_ks"] else _("any")
+            rows.append((e, _("Preset"), e["call"], "", "%g MHz" % p["freq_mhz"], sr, WHITE,
+                         _("LIVE") if e["stream"] else ""))
         for e in self.entries:
             o = e["output"]
             km = "" if e["km"] is None else ("%s%d km" % ("~" if e["approx"] else "", round(e["km"])))
@@ -304,6 +323,8 @@ class RepeaterList(Screen):
             self["key_yellow"].setText(_("Watch stream") if not self.tuner.busy else "")
             return
         o = e["output"]
+        if e.get("manual"):
+            return self._selected_manual(e)
         lines = [e["town"]]
         if e["km"] is not None:
             lines.append(_("%s%d km from you%s") % ("about " if e["approx"] else "", round(e["km"]),
@@ -332,10 +353,26 @@ class RepeaterList(Screen):
         self["live"].setText(_("Streaming now on BATC: yellow to watch") if e.get("stream") else "")
         self["key_yellow"].setText(_("Watch stream") if live else "")
 
+    def _selected_manual(self, e):
+        o = e["output"]
+        band = e["band"].replace("cm", " cm") if e["band"] != "direct" else _("straight into the box")
+        lines = [_("Your preset") if e.get("preset") else _("Tuned by hand"), "",
+                 "%g MHz  %s" % (o["freq_mhz"], band),
+                 ("%d kS/s" % o["sr_ks"]) if o.get("sr_ks") else _("Symbol rate: tries them all")]
+        if e["lnb_osc_mhz"]:
+            lines.append(_("Through an LNB at %d MHz") % e["lnb_osc_mhz"])
+        if e.get("preset"):
+            lines += ["", _("MENU to change or delete it")]
+        self["call"].setText(e["call"])
+        self["details"].setText("\n".join(lines))
+        live = bool(e.get("stream")) and not self.tuner.busy
+        self["live"].setText(_("Streaming now on BATC: yellow to watch") if e.get("stream") else "")
+        self["key_yellow"].setText(_("Watch stream") if live else "")
+
     # Watching
 
-    def watch(self, hunt=False):
-        e = self._current()
+    def watch(self, hunt=False, entry=None):
+        e = entry or self._current()
         if not e or self.tuner.busy:
             return
         if e.get("stream_only"):
@@ -538,11 +575,16 @@ class RepeaterList(Screen):
         choices = []
         if e and e.get("stream_only"):
             choices.append((_("Watch %s on the BATC streamer") % e["call"], self.watch_stream))
+        elif e and e.get("preset"):
+            choices.append((_("Watch %s") % e["call"], self.watch))
+            choices.append((_("Change preset %s") % e["call"], lambda: self.manual(e)))
+            choices.append((_("Delete preset %s") % e["call"], lambda: self.delete_preset(e)))
         elif e:
             choices.append((_("Watch %s on air") % e["call"], self.watch))
             if e.get("stream"):
                 choices.append((_("Watch %s on the BATC streamer") % e["call"], self.watch_stream))
             choices.append((_("Watch %s, trying every symbol rate") % e["call"], self.hunt))
+        choices.append((_("Tune by hand (frequency and symbol rate)"), self.manual))
         if cfg.streams.value:
             choices.append((_("Check BATC for live streams now"), self.sync.refresh))
         choices.append((_("Settings"), self.settings))
@@ -555,6 +597,50 @@ class RepeaterList(Screen):
         self._touched()
         if choice:
             choice[1]()
+
+    # Tuning by hand, and presets
+
+    def manual(self, preset_entry=None):
+        if self.tuner.busy:
+            return
+        preset = None
+        if preset_entry:
+            o = preset_entry["output"]
+            preset = {"name": preset_entry["call"], "freq_mhz": o["freq_mhz"], "sr_ks": o.get("sr_ks")}
+        self.idle_timer.stop()
+        self.session.openWithCallback(self._manual_closed, ManualTune, preset)
+
+    def _manual_closed(self, result=None):
+        self._child_closed()
+        self.presets = repeaters.load_presets()
+        self.refresh()
+        self._touched()
+        if not result:
+            return
+        what, x = result
+        if what == "watch":
+            self.watch(entry=x)
+        elif what == "saved":
+            self._select_preset(x)
+
+    def _select_preset(self, name):
+        for i, row in enumerate(self["list"].list):
+            if row[0].get("preset") and row[0]["call"].lower() == name.lower():
+                self["list"].setIndex(i)
+                return
+
+    def delete_preset(self, e):
+        def done(yes):
+            self._child_closed()
+            if yes:
+                self.presets = repeaters.drop_preset(repeaters.load_presets(), e["call"])
+                try:
+                    repeaters.save_presets(self.presets)
+                except (IOError, OSError) as err:
+                    self["status"].setText(_("Could not save the presets: %s") % err)
+                self.refresh()
+        self.session.openWithCallback(done, MessageBox, _("Delete the preset %s?") % e["call"],
+                                      MessageBox.TYPE_YESNO, default=False)
 
     # Settings
 
@@ -767,3 +853,89 @@ class LynxSettings(ConfigListScreen, Screen):
         for item in self["config"].list:
             item[1].cancel()
         self.close(False)
+
+
+class ManualTune(ConfigListScreen, Screen):
+    """A frequency and symbol rate typed in. Green watches it; yellow keeps
+    it as a preset at the top of the list."""
+    skin = _scale("""
+<screen name="LynxManualTune" position="center,center" size="1300,560" title="Tune by hand" backgroundColor="#00141414" flags="wfNoBorder">
+  <eLabel position="0,0" size="1300,90" backgroundColor="#00d0021b"/>
+  <widget name="title" position="40,0" size="1200,90" font="Regular;40" valign="center" foregroundColor="#00ffffff" backgroundColor="#00d0021b"/>
+  <widget name="config" position="30,110" size="1240,160" font="Regular;30" itemHeight="50" scrollbarMode="showOnDemand" backgroundColor="#00141414"/>
+  <widget name="help" position="40,290" size="1220,180" font="Regular;26" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
+  <eLabel position="40,490" size="8,44" backgroundColor="#00d0021b"/>
+  <widget source="key_red" render="Label" position="56,490" size="300,44" font="Regular;30" valign="center" transparent="1"/>
+  <eLabel position="400,490" size="8,44" backgroundColor="#0000a03c"/>
+  <widget source="key_green" render="Label" position="416,490" size="300,44" font="Regular;30" valign="center" transparent="1"/>
+  <eLabel position="760,490" size="8,44" backgroundColor="#00e6b800"/>
+  <widget source="key_yellow" render="Label" position="776,490" size="400,44" font="Regular;30" valign="center" transparent="1"/>
+</screen>""")
+
+    def __init__(self, session, preset=None):
+        Screen.__init__(self, session)
+        self.preset = preset
+        if preset:
+            freq, sr, name = preset["freq_mhz"], preset.get("sr_ks"), preset["name"]
+            sr = str(sr) if sr in repeaters.MANUAL_SR_KS else "any"
+        else:
+            freq, sr, name = cfg.manual_freq.value, cfg.manual_sr.value, ""
+        self.freq = ConfigInteger(default=int(round(freq)), limits=(950, 10500))
+        self.sr = ConfigSelection(default=sr, choices=SR_CHOICES)
+        self.name = ConfigText(default=name, fixed_size=False)
+        title = _("Change preset %s") % name if preset else _("Tune by hand")
+        self.setTitle(title)
+        self["title"] = Label(title)
+        ConfigListScreen.__init__(self, [
+            getConfigListEntry(_("Frequency (MHz)"), self.freq),
+            getConfigListEntry(_("Symbol rate"), self.sr),
+            getConfigListEntry(_("Name, to keep it as a preset"), self.name),
+        ], session=session)
+        self["help"] = Label(_("Type the frequency with the number keys; left and right choose the symbol rate. "
+                               "23 cm goes straight in; 9 cm and 3 cm go through the LNB oscillators in Settings. "
+                               "A preset goes at the top of the Lynx list; MENU there changes or deletes it."))
+        self["key_red"] = StaticText(_("Cancel"))
+        self["key_green"] = StaticText(_("Watch"))
+        self["key_yellow"] = StaticText(_("Save preset"))
+        self["lynx_actions"] = ActionMap(["SetupActions", "ColorActions"], {
+            "save": self.watch,
+            "green": self.watch,
+            "yellow": self.keep,
+            "cancel": lambda: self.close(None),
+            "red": lambda: self.close(None),
+        }, -2)
+
+    def _sr(self):
+        return None if self.sr.value == "any" else int(self.sr.value)
+
+    def _entry(self, name):
+        e = repeaters.manual_entry(self.freq.value, self._sr(), name, lnb_osc())
+        if not e:
+            self.session.open(MessageBox, _("The box cannot tune %d MHz. 23 cm (1240 to 1325 MHz) goes straight in; "
+                                            "9 cm and 3 cm need their LNB oscillator set in Settings.") % self.freq.value,
+                              MessageBox.TYPE_ERROR)
+        return e
+
+    def watch(self):
+        e = self._entry(self.name.value)
+        if not e:
+            return
+        cfg.manual_freq.value, cfg.manual_sr.value = self.freq.value, self.sr.value
+        cfg.manual_freq.save()
+        cfg.manual_sr.save()
+        configfile.save()
+        self.close(("watch", e))
+
+    def keep(self):
+        name = self.name.value.strip() or "%d MHz" % self.freq.value
+        if not self._entry(name):
+            return
+        preset = {"name": name, "freq_mhz": float(self.freq.value), "sr_ks": self._sr()}
+        replacing = self.preset["name"] if self.preset else None
+        try:
+            repeaters.save_presets(repeaters.put_preset(repeaters.load_presets(), preset, replacing))
+        except (IOError, OSError) as err:
+            self.session.open(MessageBox, _("Could not save the preset: %s") % err, MessageBox.TYPE_ERROR)
+            return
+        log("preset saved: %s" % preset)
+        self.close(("saved", name))
