@@ -249,7 +249,7 @@ def test_sync_updates_and_keeps_list_on_error(monkeypatch=None):
     s.refresh()
     s._worker.join()
     fe.run()
-    assert len(s.streams) == 4 and calls == [1]                           # last list kept
+    assert len(s.streams) == 4 and calls == [1, 1] and s.last_error == "no network"   # last list kept; told it failed
     s.fetched = time.time() + 5 * 365 * 86400                             # clock gone back to 2021
     assert s.stale()
 
