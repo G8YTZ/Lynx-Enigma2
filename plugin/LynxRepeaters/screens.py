@@ -47,7 +47,7 @@ except NameError:
     def _(s):
         return s
 
-VERSION = "0.1"
+VERSION = "0.2"
 
 # Settings
 
