@@ -45,6 +45,10 @@ def sessionstart(reason, session=None, **kwargs):
     if reason != 0 or session is None:
         return
     from . import screens
+    if screens.cfg.supply.value == "off":
+        from . import lnbpower
+        lnbpower.apply(True)        # the box's own tuner set-up is already loaded
+    screens.updater(session).start(120 * 1000)   # a newer Lynx? Once the clock and network are up
     if screens.cfg.streams.value:
         from . import sync
         s = sync.get()

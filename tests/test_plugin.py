@@ -480,6 +480,65 @@ def test_stream_presets():
     assert streams.member_stream([], "no spaces allowed") is None
 
 
+def test_update_check():
+    import tempfile
+    from LynxRepeaters import update
+    sha = "c2c666c" + "0" * 33
+    got = update.parse({"sha": sha, "commit": {"committer": {"date": "2026-10-23T11:00:00Z"},
+                                                "message": "Key 0: update now\n\nmore"}})
+    assert got == (sha, "2026-10-23", "Key 0: update now")
+    assert update.parse({"sha": "nonsense"}) is None
+    d = tempfile.mkdtemp()
+    v = os.path.join(d, "version.txt")
+    assert update.installed(v) is None
+    with open(v, "w") as f:
+        f.write("a" * 40 + "\n")
+    assert update.installed(v) == "a" * 40
+    assert update.newer("a" * 40, got) and not update.newer(sha, got)
+    assert not update.newer(None, got)                    # copied from a PC: left alone
+    assert "LYNX_NO_RESTART=1" in update.install_command()
+
+
+def test_lnb_power_off():
+    from LynxRepeaters import lnbpower
+    calls = []
+
+    class RealSec(object):
+        def addLNB(self): calls.append(("lnb",))
+        def addSatellite(self, o): calls.append(("sat", o))
+        def setVoltageMode(self, m): calls.append(("v", m))
+        def clear(self): calls.append(("clear",))
+
+    class RealClass(object):
+        DELAY = 7
+        @staticmethod
+        def getInstance(): return RealSec()
+
+    class NM(object):
+        secClass = RealClass
+        switchParam = type("SP", (), {"HV": 0, "_14V": 1, "_0V": 3})
+
+    def update():                        # what SecConfigure.update does, cut down
+        sec = NM.secClass.getInstance()
+        sec.clear()
+        for orb in (192, 130):
+            sec.addLNB()
+            sec.addSatellite(orb)
+            sec.setVoltageMode(NM.switchParam.HV)
+    NM.nimmanager = type("N", (), {"sec": type("S", (), {"update": staticmethod(update)})})
+    lnbpower._state.update(off=False, installed=False)
+    assert lnbpower.apply(False, NM) and calls == []      # never touched: nothing done
+    assert lnbpower.apply(True, NM)
+    assert [c for c in calls if c[0] == "v"] == [("v", 3), ("v", 0)]   # 19.2E off; 13E untouched
+    assert NM.secClass.DELAY == 7                          # everything else passes through
+    del calls[:]
+    assert lnbpower.apply(False, NM)
+    assert [c for c in calls if c[0] == "v"] == [("v", 0), ("v", 0)]
+    NM2 = type("NM2", (), {"secClass": RealClass, "switchParam": type("SP", (), {"HV": 0})})
+    lnbpower._state.update(off=False, installed=False)
+    assert not lnbpower.apply(True, NM2)                   # an image without 0 V
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

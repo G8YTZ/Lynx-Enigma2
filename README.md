@@ -22,7 +22,7 @@ A satellite receiver's tuner covers 950 to 2150 MHz, so 23 cm repeaters go strai
 - **Lynx on screen:** The broadcast name, callsign, town, distance, frequency, symbol rate, picture size and LNB supply, with the real modulation and FEC, signal level, SNR and margin read from the demodulator, and a **magic eye** for pointing antennas.
 - **Other bands** (3.4 and 10 GHz) through a suitable LNB, each with its own local oscillator.
 
-LNB power stays on, to feed the small inline preamplifiers that run from it.
+LNB power is on by default, to feed the small inline preamplifiers that run from it, and can be switched off in Settings.
 
 ## 1. Setting up the box
 
@@ -82,6 +82,8 @@ Your settings stay as they are: they live in the box's own settings file, not wi
 
 **From the remote instead:** **Menu, Setup, Software Management, Software update** does what the first line does. Lynx is not part of the feed, so a software update leaves it alone; if Lynx ever goes missing after one, run the second line again.
 
+**By itself:** Each time the box starts, Lynx checks GitHub for a newer version and asks whether to install it (Settings, **Lynx updates at start-up**: ask, install by itself, or do not check). **MENU, Check for a newer Lynx now** does the same at any time. This works on installs made with the line above; a copy put on from a PC with `deploy.sh` is left alone.
+
 **Removing Lynx,** on the box:
 ```
 rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters; /sbin/init 4; sleep 2; /sbin/init 3
@@ -92,7 +94,7 @@ rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters; /sbin/init 4; s
 **The list:**
 - **OK or green:** Watch the highlighted repeater on air. Lynx scans its one transponder and plays the programme it finds.
 - **Yellow:** Watch its BATC stream instead (repeaters marked LIVE).
-- **Blue:** Settings: locator, LNB supply (13 V vertical or 18 V horizontal), the 9 cm and 3 cm LNB oscillators, whether to show repeaters listed as off air, Open Lynx at start-up, the BATC live streams, **every BATC stream in the list** (members' and event streams too, offline ones greyed, at the end), and the player for streams.
+- **Blue:** Settings: locator, LNB supply (13 V vertical, 18 V horizontal, or off), the 9 cm and 3 cm LNB oscillators, whether to show repeaters listed as off air, Open Lynx at start-up, the BATC live streams, **every BATC stream in the list** (members' and event streams too, offline ones greyed, at the end), the player for streams, and Lynx updates at start-up.
 - **0:** Update the LIVE markers now: asks BATC which streams are live, instead of waiting for the hourly check.
 - **MENU:** Every choice in one place, including watching on air while trying every symbol rate (for a listed rate that is wrong), updating the stream status, and **Leave Lynx**.
 - **Tuning by hand:** **MENU, Tune by hand**: type the frequency in MHz (1249, say) with the number keys and choose the symbol rate (1, 1.5, 2, 3 or 4 MS/s, or **Not sure: try them all**). **OK** or **green** watches it. To keep it, give it a name and press **yellow**: it goes at the top of the list as a preset, and **MENU** on a preset changes or deletes it. Presets are kept on the box and survive Lynx updates.
@@ -117,6 +119,7 @@ rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters; /sbin/init 4; s
 
 - **Lynx does not open when the box starts:** Switch on **Open Lynx at start-up** in Lynx's settings (**blue**).
 - **The locator will not go in:** Some boxes put a space or a symbol before the 0 on the number keys. Lynx ignores those now; or press **TEXT** for the on-screen keyboard.
+- **LNB supply off:** It applies from the next tune. It also cuts power to a 19.2E satellite dish on the same tuner, so leave it on if the box watches satellite TV too.
 - **"No tuner set up":** Tuner A is not configured; see step 2 of setting up.
 - **"No signal" on a repeater you can receive:** Its listed symbol rate may be wrong. Use **MENU, Watch ... trying every symbol rate**.
 - **Sound but no picture on a stream:** Press **yellow** on the bar to try the other player, or select the stream again: these players can miss the picture when they join a stream between keyframes. A stream whose keyframes are far apart (GB3NQ, October 2026) can stay sound-only; that is for its keeper to fix.

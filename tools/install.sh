@@ -14,7 +14,22 @@
 # Copyright (C) 2026 Justin Cockett, G8YTZ. GPL-2.0-or-later; see LICENSE.
 set -e
 
-URL=${LYNX_TARBALL:-https://github.com/G8YTZ/Lynx-Enigma2/archive/refs/heads/main.tar.gz}
+# The commit main is at, so the download matches it and Lynx can tell
+# later whether there is a newer one (its start-up update check).
+SHA=""
+if [ -z "$LYNX_TARBALL" ]; then
+    SHA=$(wget -qO- https://api.github.com/repos/G8YTZ/Lynx-Enigma2/commits/main 2>/dev/null \
+          | grep -m1 '"sha"' | sed 's/.*"sha": *"\([0-9a-f]\{40\}\)".*/\1/')
+    case "$SHA" in
+        [0-9a-f][0-9a-f][0-9a-f][0-9a-f]*) ;;
+        *) SHA="" ;;
+    esac
+fi
+if [ -n "$SHA" ]; then
+    URL=https://github.com/G8YTZ/Lynx-Enigma2/archive/$SHA.tar.gz
+else
+    URL=${LYNX_TARBALL:-https://github.com/G8YTZ/Lynx-Enigma2/archive/refs/heads/main.tar.gz}
+fi
 DEST=${LYNX_DEST:-/usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters}
 WORK=/tmp/lynx-install.$$
 
@@ -52,6 +67,11 @@ cp "$SRC"/*.py "$DEST/"
 rm -rf "$DEST/eye"
 cp -R "$SRC/eye" "$DEST/"
 cp "$TOP/data/repeaters.json" "$DEST/"
+if [ -n "$SHA" ]; then
+    echo "$SHA" > "$DEST/version.txt"
+else
+    rm -f "$DEST/version.txt"
+fi
 
 if [ -n "$LYNX_NO_RESTART" ]; then
     echo "Lynx: installed (GUI not restarted)"

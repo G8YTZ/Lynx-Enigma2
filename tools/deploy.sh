@@ -1,9 +1,10 @@
 #!/bin/sh
 # Copy the plugin and the repeater list to an Enigma2 box and restart its GUI.
+# It removes version.txt, so the box does not offer to "update" over your copy.
 #   tools/deploy.sh [box address] [--no-restart]
 # Needs root SSH to the box (OpenATV: no password by default).
 set -e
-BOX=192.168.0.164
+BOX=192.168.0.163
 RESTART=1
 for a in "$@"; do
     case "$a" in
@@ -20,7 +21,7 @@ cp -R "$HERE/plugin/LynxRepeaters/eye" "$STAGE/"
 # COPYFILE_DISABLE stops macOS tar adding ._ files; tar over ssh avoids
 # needing SFTP on the box; -m stops tar fussing when the box's clock is wrong.
 COPYFILE_DISABLE=1 tar -C "$STAGE" -cf - . | \
-    ssh root@"$BOX" "mkdir -p $DEST && rm -rf $DEST/__pycache__ && tar -m -C $DEST -xf -"
+    ssh root@"$BOX" "mkdir -p $DEST && rm -rf $DEST/__pycache__ $DEST/version.txt && tar -m -C $DEST -xf -"
 echo "Copied to $BOX:$DEST"
 if [ -n "$RESTART" ]; then
     # /sbin is not on the box's PATH over SSH, hence the full paths.

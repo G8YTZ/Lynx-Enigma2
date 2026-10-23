@@ -55,7 +55,11 @@ config.plugins.lynxrepeaters = ConfigSubsection()
 cfg = config.plugins.lynxrepeaters
 cfg.locator = ConfigText(default="", fixed_size=False)
 cfg.supply = ConfigSelection(default="13", choices=[
-    ("13", _("13 V (vertical)")), ("18", _("18 V (horizontal)"))])
+    ("13", _("13 V (vertical)")), ("18", _("18 V (horizontal)")),
+    ("off", _("Off: no power up the cable"))])
+# At each start: look for a newer Lynx on GitHub (Justin, 23 Oct 2026).
+cfg.update_check = ConfigSelection(default="ask", choices=[
+    ("ask", _("Ask before installing")), ("auto", _("Install by itself")), ("off", _("Do not check"))])
 cfg.osc_9cm = ConfigInteger(default=repeaters.BANDS["9cm"][2], limits=(1, 20000))
 cfg.osc_3cm = ConfigInteger(default=repeaters.BANDS["3cm"][2], limits=(1, 20000))
 cfg.show_off = ConfigYesNo(default=False)
@@ -641,6 +645,7 @@ class RepeaterList(Screen):
         if cfg.streams.value:
             choices.append((_("Update the BATC stream status now (0)"), self.update_streams))
         choices.append((_("Settings"), self.settings))
+        choices.append((_("Check for a newer Lynx now"), lambda: updater(self.session).check(manual=True)))
         choices.append((_("Leave Lynx"), self.leave))
         self.idle_timer.stop()
         self.session.openWithCallback(self._menu_chosen, ChoiceBox, title=_("Lynx"), list=choices)
@@ -858,8 +863,8 @@ class LynxBar(Screen):
                                (["%dx%d" % p["size"]] if p.get("size") else []))
         # The supply Lynx puts up the cable (set by polarisation): real, unlike
         # the driver's echoed system, roll-off and FEC on this box.
-        text = "%s   LNB %s V" % (tech_text(self.entry["output"]["freq_mhz"], p, self.entry["locked_sr_ks"]),
-                                 cfg.supply.value)
+        supply = _("LNB off") if cfg.supply.value == "off" else "LNB %s V" % cfg.supply.value
+        text = "%s   %s" % (tech_text(self.entry["output"]["freq_mhz"], p, self.entry["locked_sr_ks"]), supply)
         dbm = level(self.session)
         if dbm is None:
             return text
@@ -900,6 +905,7 @@ class LynxSettings(ConfigListScreen, Screen):
             getConfigListEntry(_("BATC live streams (checked hourly)"), cfg.streams),
             getConfigListEntry(_("Every BATC stream in the list, not only repeaters"), cfg.all_streams),
             getConfigListEntry(_("Player for streams"), cfg.player),
+            getConfigListEntry(_("Lynx updates at start-up"), cfg.update_check),
         ]
         ConfigListScreen.__init__(self, items, session=session)
         if welcome:
@@ -907,7 +913,7 @@ class LynxSettings(ConfigListScreen, Screen):
                      "Open Lynx at start-up to come straight here whenever the box starts. Green saves.")
         else:
             text = _("Type the locator with the number keys, or press TEXT for an on-screen keyboard; "
-                     "upper or lower case both work. The LNB supply stays on for inline preamplifiers. "
+                     "upper or lower case both work. LNB supply off also cuts power to a 19.2E dish on this tuner. "
                      "Lynx-Enigma2 %s") % VERSION
         self["help"] = Label(text)
         self["key_red"] = StaticText(_("Cancel"))
@@ -927,6 +933,12 @@ class LynxSettings(ConfigListScreen, Screen):
             return
         cfg.locator.value = loc
         player_changed = cfg.player.isChanged()
+        if cfg.supply.isChanged():
+            from . import lnbpower
+            if not lnbpower.apply(cfg.supply.value == "off") and cfg.supply.value == "off":
+                self.session.open(MessageBox, _("This box's software cannot switch the LNB supply off."),
+                                  MessageBox.TYPE_ERROR)
+                return
         for item in self["config"].list:
             item[1].save()
         configfile.save()
@@ -1094,3 +1106,109 @@ class AddStream(ConfigListScreen, Screen):
             return
         log("stream preset saved: %s" % preset)
         self.close(("saved", name))
+
+
+class LynxUpdater(object):
+    """At start-up, and from MENU: a newer Lynx on GitHub? Then ask (or,
+    if set, just install), install it with the README's install line, and
+    restart the GUI. Network and install in a worker thread."""
+
+    def __init__(self, session):
+        self.session = session
+        self.busy = False
+        self._result = None
+        self.poll, self._pc = _timer(self._poll)
+        self.later, self._lc = _timer(self.check)
+
+    def start(self, delay_ms):
+        if cfg.update_check.value != "off":
+            self.later.start(delay_ms, True)
+
+    def _run(self, job, then):
+        import threading
+        self.busy, self._result, self._then = True, None, then
+
+        def work():
+            try:
+                self._result = ("ok", job())
+            except Exception as e:
+                self._result = ("error", e)
+        t = threading.Thread(target=work)
+        t.daemon = True
+        t.start()
+        self.poll.start(500, True)
+
+    def _poll(self):
+        if self._result is None:
+            self.poll.start(500, True)
+            return
+        self.busy = False
+        kind, value = self._result
+        self._then(kind, value)
+
+    def check(self, manual=False):
+        if self.busy:
+            return
+        from . import update
+        self.manual = manual
+
+        def job():
+            sync.fix_clock()              # no battery clock: HTTPS needs the right date
+            return update.latest()
+        self._run(job, self._checked)
+
+    def _checked(self, kind, value):
+        from . import update
+        if kind == "error" or not value:
+            log("update check: %s" % (value,))
+            if self.manual:
+                self._say(_("Could not reach GitHub to check for a newer Lynx."))
+            return
+        have = update.installed()
+        self.latest = value
+        if not update.newer(have, value) and not (self.manual and have != value[0]):
+            log("update check: up to date (%s)" % (have or "copied from a PC")[:7])
+            if self.manual:
+                self._say(_("This Lynx is up to date."))
+            return
+        log("update check: %s available (%s)" % (value[0][:7], value[1]))
+        if cfg.update_check.value == "auto" and not self.manual:
+            return self._install(True)
+        text = _("A newer Lynx is ready (%s):\n%s\n\nInstall it now? The picture stops for about a minute "
+                 "while the box restarts its menus.") % (value[1], value[2])
+        self.session.openWithCallback(self._install, MessageBox, text, MessageBox.TYPE_YESNO,
+                                      timeout=60, default=False)
+
+    def _install(self, yes):
+        if not yes:
+            return
+        rec = getattr(self.session.nav, "RecordTimer", None)
+        if rec and rec.isRecording():
+            log("update: not now, the box is recording")
+            return
+        import subprocess
+        from . import update
+        log("update: installing %s" % self.latest[0][:7])
+        self._say(_("Updating Lynx..."), 30)
+        self._run(lambda: subprocess.call(["sh", "-c", update.install_command()]), self._installed)
+
+    def _installed(self, kind, value):
+        if kind == "error" or value != 0:
+            log("update: install failed (%s); see /tmp/lynx-update.log" % (value,))
+            self._say(_("The Lynx update did not install; Lynx is as it was. Details in /tmp/lynx-update.log."))
+            return
+        log("update: installed; restarting the GUI")
+        from Screens.Standby import TryQuitMainloop
+        self.session.open(TryQuitMainloop, 3)
+
+    def _say(self, text, timeout=8):
+        self.session.open(MessageBox, text, MessageBox.TYPE_INFO, timeout=timeout)
+
+
+_updater = []
+
+
+def updater(session):
+    if not _updater:
+        _updater.append(LynxUpdater(session))
+    return _updater[0]
