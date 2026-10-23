@@ -39,7 +39,7 @@ from Screens.Screen import Screen
 from . import repeaters, streams, sync
 from .eye import FRAMES as EYE_FRAMES, closure as eye_closure, frame as eye_frame, margin_db
 from .tuning import level, signal
-from .tuning import RepeaterTuner, _timer, live, match_playing, signal_text, tech_text, title_text
+from .tuning import RepeaterTuner, _timer, live, match_playing, same_service, signal_text, tech_text, title_text
 
 try:
     _
@@ -494,6 +494,23 @@ class RepeaterList(Screen):
         else:
             self.watch()
 
+    def programme(self, by=0):
+        """From the Lynx bar's left/right: the next programme on the same
+        repeater (a scan finds them all). Returns (number, how many) for
+        what plays afterwards, or None when there is only one."""
+        progs = self.tuner.programmes
+        if (len(progs) < 2 or self.tuner.busy or not self.watching
+                or self.watching.get("via_stream")):
+            return None
+        cur = self._playing()
+        cur = cur.toString() if cur else ""
+        i = next((n for n, r in enumerate(progs) if same_service(r, cur)), 0)
+        if by:
+            i = (i + by) % len(progs)
+            self.session.nav.playService(eServiceReference(progs[i]))
+            log("programme %d of %d: %s" % (i + 1, len(progs), progs[i]))
+        return i + 1, len(progs)
+
     def _child_closed(self):
         self.child_closed_at = time.time()
 
@@ -774,6 +791,8 @@ class LynxBar(Screen):
             "zapUp": prv, "zapDown": nxt,
             "switchChannelUp": prv, "switchChannelDown": nxt,
             "nextBouquet": nxt, "prevBouquet": prv,
+            # Left/right: the other programmes on the same repeater.
+            "left": lambda: self._programme(-1), "right": lambda: self._programme(1),
         }, -1)
         self.visible = True
         self.timer, self._tc = _timer(self.update)
@@ -792,6 +811,14 @@ class LynxBar(Screen):
             if not self.visible:
                 self.toggle()
             self.owner.step(by)
+
+    def _programme(self, by):
+        if not self.owner:
+            return
+        if not self.visible:
+            self.toggle()
+        if self.owner.programme(by):
+            self.update()
 
     def set_entry(self, entry):
         """Now showing something else (or about to)."""
@@ -838,8 +865,12 @@ class LynxBar(Screen):
     def update(self):
         # Live values every second: what was actually locked and decoded,
         # never the list's idea of FEC or codec.
-        self["hint"].setText(_("CH+/- next  OK hide  EXIT list  YELLOW player")
-                             if self.entry.get("other_player") else _("CH+/- next   OK hide   EXIT list"))
+        prog = self.owner.programme() if self.owner and not self.entry.get("pending") else None
+        if prog:
+            self["hint"].setText(_("< > programme %d/%d   CH+/- next   EXIT list") % prog)
+        else:
+            self["hint"].setText(_("CH+/- next  OK hide  EXIT list  YELLOW player")
+                                 if self.entry.get("other_player") else _("CH+/- next   OK hide   EXIT list"))
         waiting = self.entry.get("pending") or self.notice_text
         p = {} if waiting else live(self.session)
         self.modcod = p

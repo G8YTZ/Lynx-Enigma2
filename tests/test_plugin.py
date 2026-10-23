@@ -79,6 +79,21 @@ def _tune(call, hunt=False, supply="13"):
     return s, log, result, t
 
 
+def test_two_programmes_play_the_first_and_list_both():
+    # Lynx-Tx's programme 2 (Service ID 2, HEVC 0x1F) found before programme 1.
+    old = list(fe.WORLD["refs"])
+    fe.WORLD.update(sr=2000, start=0, refs=["1:0:1F:2:1:FF01:C02B2E:0:0:0:",
+                                            "1:0:1:1:1:FF01:C02B2E:0:0:0:",
+                                            "1:0:2:3:1:FF01:C02B2E:0:0:0:"])
+    try:
+        s, log, result, t = _tune("GB3OO")
+        assert s.nav.playing == "1:0:1:1:1:FF01:C02B2E:0:0:0:"
+        assert t.programmes == ["1:0:1:1:1:FF01:C02B2E:0:0:0:", "1:0:1F:2:1:FF01:C02B2E:0:0:0:"]
+        assert tuning.same_service("1:0:1F:2:1:FF01:C02B2E:0:0:0:", "1:0:1F:2:1:FF01:C02B2E:0:0:0:x:")
+    finally:
+        fe.WORLD["refs"] = old
+
+
 def test_tune_gb3oo():
     fe.WORLD.update(sr=2000, start=0)
     s, log, result, t = _tune("GB3OO", supply="18")

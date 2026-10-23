@@ -184,6 +184,25 @@ def service_type(ref):
         return -1
 
 
+def service_id(ref):
+    try:
+        return int(ref.split(":")[3], 16)
+    except (IndexError, ValueError):
+        return 0xFFFF
+
+
+def same_service(a, b):
+    """Two service reference strings for the same programme (type, SID,
+    TSID, ONID, namespace), whatever their trailing fields."""
+    return a.split(":")[2:7] == b.split(":")[2:7]
+
+
+def tv_programmes(refs):
+    """Every TV programme a scan found, in Service ID order: a repeater
+    can carry more than one (Lynx-Tx's programme 2, a 4K stills carousel)."""
+    return sorted((r for r in refs if service_type(r) in VIDEO_TYPES), key=service_id)
+
+
 def pick_service(refs):
     """The first TV service; failing that anything but radio; else the first."""
     for r in refs:
@@ -210,6 +229,7 @@ class RepeaterTuner:
         self.later, self._lt = _timer(self._after_scan)
         self.settle, self._sl = _timer(self._next)
         self.busy = False
+        self.programmes = []
 
     def tune(self, entry, supply_v="13", hunt=False):
         self.entry, self.supply_v = entry, supply_v
@@ -221,6 +241,7 @@ class RepeaterTuner:
             # Say what is wrong rather than report no signal at every rate.
             return self.done(None, None, NO_TUNER)
         self.busy = True
+        self.programmes = []
         was_stream = playing_stream(self.session)
         self.session.nav.stopService()      # free the tuner for the scan
         if end_stream_players():
@@ -279,8 +300,10 @@ class RepeaterTuner:
             return
         self.watchdog.stop()
         self.later.stop()
-        ref = pick_service(self.found)
+        # The lowest Service ID first: programme 1 before programme 2.
+        ref = pick_service(sorted(self.found, key=service_id))
         if ref:
+            self.programmes = tv_programmes(self.found)
             self._stop_scan()
             self.session.nav.playService(eServiceReference(ref))
             return self._finish(ref, None)
