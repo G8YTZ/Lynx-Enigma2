@@ -198,7 +198,9 @@ API_SAMPLE = {
 def test_streams_parse_and_match():
     from LynxRepeaters import streams
     got = streams.parse(API_SAMPLE)
-    assert [g["key"] for g in got] == ["gb3hv-hd", "gb3oo", "g8ytz"]      # repeaters first; bad names dropped
+    assert [g["key"] for g in got] == ["gb3hv-hd", "gb3oo", "g8ytz", "gb3tv"]   # repeaters first; bad names dropped
+    assert [g["key"] for g in streams.live_only(got)] == ["gb3hv-hd", "gb3oo", "g8ytz"]
+    assert "gb3tv" not in streams.bouquet_text(got)                     # offline: not in BATC Live
     assert got[1]["url"] == "rtmp://rtmp.batc.org.uk/live/gb3oo"
     assert streams.for_call(got, "GB3OO")["key"] == "gb3oo"
     assert streams.for_call(got, "GB3HV")["key"] == "gb3hv-hd"
@@ -240,14 +242,14 @@ def test_sync_updates_and_keeps_list_on_error(monkeypatch=None):
     s.refresh()
     s._worker.join()
     fe.run()
-    assert len(s.streams) == 3 and not s.stale() and calls == [1]
+    assert len(s.streams) == 4 and len(streams.live_only(s.streams)) == 3 and not s.stale() and calls == [1]
     def boom(timeout=15):
         raise IOError("no network")
     streams.fetch = boom
     s.refresh()
     s._worker.join()
     fe.run()
-    assert len(s.streams) == 3 and calls == [1]                           # last list kept
+    assert len(s.streams) == 4 and calls == [1]                           # last list kept
     s.fetched = time.time() + 5 * 365 * 86400                             # clock gone back to 2021
     assert s.stale()
 
@@ -296,6 +298,10 @@ def test_stream_only_repeaters():
     only = streams.stream_only(got, ["GB3OO", "GB3EN"])
     assert [(x["call"], x["town"]) for x in only] == [("DB0OZ", "Bremen"), ("Oscar 100 net", "")]
     assert only[0]["stream"]["key"] == "db0oz"
+    got.append({"name": "G4FRE Orpington", "key": "g4fre", "url": "x", "repeater": False, "live": False})
+    every = streams.stream_only(got, ["GB3OO", "GB3EN", "g8ytz"], everything=True)
+    assert [x["call"] for x in every] == ["DB0OZ", "Oscar 100 net", "G4FRE"]     # live first, then offline
+    assert [x["call"] for x in streams.stream_only([dict(got[0], live=False)], [])] == []
 
 
 def test_match_playing():

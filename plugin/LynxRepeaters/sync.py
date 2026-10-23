@@ -116,7 +116,7 @@ class StreamSync(object):
             log("BATC stream list: %s" % value)
             return
         self.streams, self.fetched = value, time.time()
-        log("BATC stream list: %d live" % len(value))
+        log("BATC stream list: %d live, %d in all" % (len(streams.live_only(value)), len(value)))
         try:
             streams.save(value)
             if streams.write_bouquet(value, stype=streams.player_type(self.player())):

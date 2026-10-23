@@ -61,6 +61,9 @@ cfg.osc_3cm = ConfigInteger(default=repeaters.BANDS["3cm"][2], limits=(1, 20000)
 cfg.show_off = ConfigYesNo(default=False)
 cfg.autostart = ConfigYesNo(default=False)
 cfg.streams = ConfigYesNo(default=True)
+# Every BATC stream at the end of the list, members' and offline ones too
+# (Justin, 23 Oct 2026), not only repeaters that stream.
+cfg.all_streams = ConfigYesNo(default=False)
 cfg.player = ConfigSelection(default="auto", choices=[
     ("auto", _("Automatic (gstplayer, then exteplayer3)")),
     ("exteplayer3", _("exteplayer3 (ServiceApp)")),
@@ -197,10 +200,10 @@ class RepeaterList(Screen):
       {"template": [
         MultiContentEntryText(pos=(12,0), size=(160,46), font=0, flags=RT_HALIGN_LEFT|RT_VALIGN_CENTER, text=1, color=0xFF000006, color_sel=0xFFFFFF),
         MultiContentEntryText(pos=(180,0), size=(320,46), font=0, flags=RT_HALIGN_LEFT|RT_VALIGN_CENTER, text=2, color=0xFF000006, color_sel=0xFFFFFF),
-        MultiContentEntryText(pos=(500,0), size=(130,46), font=0, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=3, color=0xFF000006, color_sel=0xFFFFFF),
-        MultiContentEntryText(pos=(640,0), size=(160,46), font=0, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=4, color=0xFF000006, color_sel=0xFFFFFF),
-        MultiContentEntryText(pos=(810,0), size=(150,46), font=0, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=5, color=0xFF000006, color_sel=0xFFFFFF),
-        MultiContentEntryText(pos=(970,0), size=(90,46), font=1, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=7, color=0xFFD200, color_sel=0xFFFFFF)],
+        MultiContentEntryText(pos=(490,0), size=(120,46), font=0, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=3, color=0xFF000006, color_sel=0xFFFFFF),
+        MultiContentEntryText(pos=(615,0), size=(170,46), font=0, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=4, color=0xFF000006, color_sel=0xFFFFFF),
+        MultiContentEntryText(pos=(790,0), size=(150,46), font=0, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=5, color=0xFF000006, color_sel=0xFFFFFF),
+        MultiContentEntryText(pos=(950,0), size=(80,46), font=1, flags=RT_HALIGN_LEFT|RT_VALIGN_CENTER, text=7, color=0xFFD200, color_sel=0xFFFFFF)],
        "fonts": [gFont("Regular", 30), gFont("Regular", 24)],
        "itemHeight": 46}
     </convert>
@@ -304,9 +307,12 @@ class RepeaterList(Screen):
                          _("LIVE") if e["stream"] else ""))
         # Repeaters seen only on the BATC streamer, at the end of the list.
         if cfg.streams.value:
-            for x in streams.stream_only(self.sync.streams, [e["call"] for e in self.entries]):
+            shown = [e["call"] for e in self.entries] + [p["stream"] for p in self.presets if p.get("stream")]
+            for x in streams.stream_only(self.sync.streams, shown, cfg.all_streams.value):
                 e = dict(x, stream_only=True, km=None, approx=False, status="on")
-                rows.append((e, e["call"], e["town"], "", _("Stream only"), "", WHITE, _("LIVE")))
+                live = streams.is_live(x["stream"])
+                rows.append((e, e["call"], e["town"], "", _("Stream only"), "", WHITE if live else GREY,
+                             _("LIVE") if live else ""))
         self["list"].setList(rows)
         loc = repeaters.clean_locator(cfg.locator.value)
         self["where"].setText(_("From %s") % loc if here else _("Set your locator in Settings (blue)"))
@@ -341,7 +347,8 @@ class RepeaterList(Screen):
             self["details"].setText("\n".join([e["town"], "", _("On the BATC streamer only:"),
                                                _("not on the UK repeater list, so"), _("there is nothing to tune on air."),
                                                "", e["stream"]["name"]]))
-            self["live"].setText(_("Streaming now on BATC: OK or yellow to watch"))
+            self["live"].setText(_("Streaming now on BATC: OK or yellow to watch") if streams.is_live(e["stream"])
+                                 else _("Not streaming now: OK tries it anyway"))
             self["key_yellow"].setText(_("Watch stream") if not self.tuner.busy else "")
             return
         o = e["output"]
@@ -846,15 +853,15 @@ class LynxBar(Screen):
 
 class LynxSettings(ConfigListScreen, Screen):
     skin = _scale("""
-<screen name="LynxSettings" position="center,center" size="1300,640" title="Lynx settings" backgroundColor="#00141414" flags="wfNoBorder">
+<screen name="LynxSettings" position="center,center" size="1300,780" title="Lynx settings" backgroundColor="#00141414" flags="wfNoBorder">
   <eLabel position="0,0" size="1300,90" backgroundColor="#00d0021b"/>
   <eLabel text="Lynx settings" position="40,0" size="1200,90" font="Regular;40" valign="center" foregroundColor="#00ffffff" backgroundColor="#00d0021b"/>
-  <widget name="config" position="30,110" size="1240,360" font="Regular;30" itemHeight="50" scrollbarMode="showOnDemand" backgroundColor="#00141414"/>
-  <widget name="help" position="40,480" size="1220,80" font="Regular;26" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
-  <eLabel position="40,580" size="8,44" backgroundColor="#00d0021b"/>
-  <widget source="key_red" render="Label" position="56,580" size="300,44" font="Regular;30" valign="center" transparent="1"/>
-  <eLabel position="400,580" size="8,44" backgroundColor="#0000a03c"/>
-  <widget source="key_green" render="Label" position="416,580" size="300,44" font="Regular;30" valign="center" transparent="1"/>
+  <widget name="config" position="30,110" size="1240,450" font="Regular;30" itemHeight="50" scrollbarMode="showOnDemand" backgroundColor="#00141414"/>
+  <widget name="help" position="40,575" size="1220,110" font="Regular;26" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
+  <eLabel position="40,710" size="8,44" backgroundColor="#00d0021b"/>
+  <widget source="key_red" render="Label" position="56,710" size="300,44" font="Regular;30" valign="center" transparent="1"/>
+  <eLabel position="400,710" size="8,44" backgroundColor="#0000a03c"/>
+  <widget source="key_green" render="Label" position="416,710" size="300,44" font="Regular;30" valign="center" transparent="1"/>
 </screen>""")
 
     def __init__(self, session, welcome=False):
@@ -868,6 +875,7 @@ class LynxSettings(ConfigListScreen, Screen):
             getConfigListEntry(_("Show repeaters listed as off air"), cfg.show_off),
             getConfigListEntry(_("Open Lynx at start-up"), cfg.autostart),
             getConfigListEntry(_("BATC live streams (checked hourly)"), cfg.streams),
+            getConfigListEntry(_("Every BATC stream in the list, not only repeaters"), cfg.all_streams),
             getConfigListEntry(_("Player for streams"), cfg.player),
         ]
         ConfigListScreen.__init__(self, items, session=session)

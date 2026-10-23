@@ -79,14 +79,16 @@ _KEY = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
 
 
 def parse(data):
-    """Live, listed streams from the API's JSON (a dict of categories, each
-    a list of streams), repeaters first, then by name."""
+    """Listed streams from the API's JSON (a dict of categories, each a list
+    of streams), repeaters first, then by name. "live" says whether each is
+    streaming now; the list also holds the ones that are not, for Lynx's
+    "every BATC stream" setting (Justin, 23 Oct 2026)."""
     out, seen = [], set()
     for streams in data.values() if isinstance(data, dict) else ():
         if not isinstance(streams, list):
             continue
         for s in streams:
-            if not isinstance(s, dict) or not s.get("active"):
+            if not isinstance(s, dict):
                 continue
             if str(s.get("stream_listed")) != "1":
                 continue
@@ -96,14 +98,22 @@ def parse(data):
                 continue
             seen.add(key.lower())
             out.append({"name": title, "key": key, "url": RTMP % key,
-                        "repeater": str(s.get("stream_type_repeater", "0")) == "1"})
+                        "repeater": str(s.get("stream_type_repeater", "0")) == "1",
+                        "live": bool(s.get("active")) and str(s.get("active")) != "0"})
     out.sort(key=lambda x: (not x["repeater"], x["name"].lower()))
     return out
 
 
-def for_call(streams, call):
-    """The live stream for a repeater, matched on the stream's name (gb3oo),
-    or None."""
+def is_live(s):
+    return s.get("live", True)          # a cache from before 23 Oct 2026 held live ones only
+
+
+def live_only(streams):
+    return [s for s in streams if is_live(s)]
+
+
+def _match(streams, call):
+    """The stream named after a callsign (gb3oo, or gb3hv-hd), or None."""
     call = call.lower()
     for s in streams:
         if s["key"].lower() == call:
@@ -113,6 +123,12 @@ def for_call(streams, call):
         if k.startswith(call) and not k[len(call):len(call) + 1].isalnum():
             return s
     return None
+
+
+def for_call(streams, call):
+    """The live stream for a repeater, matched on the stream's name (gb3oo),
+    or None."""
+    return _match(live_only(streams), call)
 
 
 _CALL = re.compile(r"^[A-Z0-9]{1,3}[0-9][A-Z0-9]{1,4}$")
@@ -127,20 +143,22 @@ def member_stream(streams, key, name=None):
         return None
     for s in streams:
         if s["key"].lower() == key.lower():
-            return dict(s, live=True)
+            return dict(s, live=is_live(s))
     return {"name": name or key.upper(), "key": key, "url": RTMP % key, "repeater": False, "live": False}
 
 
-def stream_only(streams, listed_calls):
-    """Streams BATC marks as repeaters that match no repeater on the list
-    (DB0OZ Bremen, say): one entry each, callsign and place split from the
-    stream's title where it starts with a callsign."""
+def stream_only(streams, listed_calls, everything=False):
+    """Streams BATC marks as repeaters that are live and match no repeater on
+    the list (DB0OZ Bremen, say): one entry each, callsign and place split
+    from the stream's title where it starts with a callsign. everything:
+    every listed stream instead, members' and offline ones too, live first.
+    A repeater on the list (or a preset) that is streaming is never shown twice."""
     listed = [c.lower() for c in listed_calls]
     out = []
     for s in streams:
-        if not s.get("repeater"):
+        if not everything and not (s.get("repeater") and is_live(s)):
             continue
-        if any(for_call([s], c) for c in listed):
+        if any(_match([s], c) for c in listed):
             continue
         words = s["name"].split(None, 1)
         if words and _CALL.match(words[0].upper()):
@@ -148,7 +166,7 @@ def stream_only(streams, listed_calls):
         else:
             call, town = s["name"], ""
         out.append({"call": call, "town": town, "stream": s})
-    out.sort(key=lambda x: x["call"])
+    out.sort(key=lambda x: (not is_live(x["stream"]), x["call"].lower()))
     return out
 
 
@@ -161,7 +179,7 @@ def service_ref(stream, stype=4097):
 
 def bouquet_text(streams, stype=4097):
     lines = ["#NAME %s" % BOUQUET_TITLE]
-    for s in streams:
+    for s in live_only(streams):
         lines.append("#SERVICE %s" % service_ref(s, stype))
         lines.append("#DESCRIPTION %s" % s["name"].replace("\n", " "))
     return "\n".join(lines) + "\n"
