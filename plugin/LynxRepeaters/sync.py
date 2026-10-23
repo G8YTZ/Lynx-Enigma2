@@ -57,6 +57,7 @@ class StreamSync(object):
         self.listeners = []            # called with no arguments after an update
         self._result = None
         self._worker = None
+        self.last_error = None         # why the last check failed, or None
         self.timer, self._tc = _timer(self.due)
         self.poll, self._pc = _timer(self._check)
 
@@ -114,7 +115,10 @@ class StreamSync(object):
         self._result = None
         if kind == "error":
             log("BATC stream list: %s" % value)
+            self.last_error = str(value) or value.__class__.__name__
+            self._tell()
             return
+        self.last_error = None
         self.streams, self.fetched = value, time.time()
         log("BATC stream list: %d live, %d in all" % (len(streams.live_only(value)), len(value)))
         try:
@@ -124,6 +128,9 @@ class StreamSync(object):
                 eDVBDB.getInstance().reloadBouquets()
         except Exception as e:
             log("BATC channel list: %s" % e)
+        self._tell()
+
+    def _tell(self):
         for fn in list(self.listeners):
             try:
                 fn()

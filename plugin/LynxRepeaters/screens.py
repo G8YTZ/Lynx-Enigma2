@@ -183,8 +183,8 @@ BUTTONS = """
   <eLabel position="760,{y}" size="8,44" backgroundColor="#00e6b800"/>
   <widget source="key_yellow" render="Label" position="776,{y}" size="400,44" font="Regular;30" valign="center" transparent="1"/>
   <eLabel position="1220,{y}" size="8,44" backgroundColor="#000060d0"/>
-  <widget source="key_blue" render="Label" position="1236,{y}" size="300,44" font="Regular;30" valign="center" transparent="1"/>
-  <eLabel text="MENU  More" position="1550,{y}" size="180,44" font="Regular;30" halign="right" valign="center" foregroundColor="#00c0c0c0" transparent="1"/>
+  <widget source="key_blue" render="Label" position="1236,{y}" size="200,44" font="Regular;30" valign="center" transparent="1"/>
+  <eLabel text="0  Update streams    MENU  More" position="1400,{y}" size="330,44" font="Regular;26" halign="right" valign="center" foregroundColor="#00c0c0c0" transparent="1"/>
 """
 
 
@@ -255,13 +255,15 @@ class RepeaterList(Screen):
             "blue": self.settings,
             "menu": self.menu,
         }, -1)
+        self["numbers"] = ActionMap(["NumberActions"], {"0": self.update_streams}, -1)
         self["list"].onSelectionChanged.append(self._selected)
         self["list"].onSelectionChanged.append(self._touched)
         self.data = repeaters.load()
         self.presets = repeaters.load_presets()
         self.sync = sync.get()
-        self.sync.listeners.append(self.refresh)
-        self.onClose.append(lambda: self.sync.listeners.remove(self.refresh))
+        self.checking = False             # an update asked for with 0 or MENU
+        self.sync.listeners.append(self._streams_updated)
+        self.onClose.append(lambda: self.sync.listeners.remove(self._streams_updated))
         self.onLayoutFinish.append(self.refresh)
         self.onLayoutFinish.append(self._adopt_playing)
         self.welcome_timer, self._wlt = _timer(self._welcome_now)
@@ -317,6 +319,27 @@ class RepeaterList(Screen):
         loc = repeaters.clean_locator(cfg.locator.value)
         self["where"].setText(_("From %s") % loc if here else _("Set your locator in Settings (blue)"))
         self._selected()
+
+    def update_streams(self):
+        """0, or MENU: ask BATC now which streams are live, rather than wait
+        for the hourly check (Justin, 23 Oct 2026)."""
+        if not cfg.streams.value:
+            self["status"].setText(_("BATC streams are switched off in Settings (blue)"))
+            return
+        self.checking = True
+        self["status"].setText(_("Asking BATC which streams are live..."))
+        self.sync.refresh()
+
+    def _streams_updated(self):
+        self.refresh()
+        if not self.checking:
+            return
+        self.checking = False
+        if self.sync.last_error:
+            self["status"].setText(_("Could not reach BATC: %s") % self.sync.last_error)
+        else:
+            self["status"].setText(_("BATC checked at %s: %d streams live") % (
+                time.strftime("%H:%M"), len(streams.live_only(self.sync.streams))))
 
     def _stream_for(self, e):
         return streams.for_call(self.sync.streams, e["call"]) if cfg.streams.value else None
@@ -616,7 +639,7 @@ class RepeaterList(Screen):
         choices.append((_("Tune by hand (frequency and symbol rate)"), self.manual))
         choices.append((_("Add a BATC stream by its name (a member's stream)"), self.add_stream))
         if cfg.streams.value:
-            choices.append((_("Check BATC for live streams now"), self.sync.refresh))
+            choices.append((_("Update the BATC stream status now (0)"), self.update_streams))
         choices.append((_("Settings"), self.settings))
         choices.append((_("Leave Lynx"), self.leave))
         self.idle_timer.stop()
