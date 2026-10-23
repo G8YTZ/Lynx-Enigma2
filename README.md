@@ -30,6 +30,8 @@ Tested on a Zgemma H11S. Other Enigma2 boxes with a DVB-S2 tuner should work the
 
 1. **A current image:** OpenATV 8 or later (7.x is end of life). Older images (Python 2, 2021 and before) run Lynx, but their stream players miss the picture on many BATC streams.
 
+   **A new box** runs its own set-up wizard the first time it powers up: language, screen, network, then tuner and a channel scan. Plug the network cable in first. Answer the questions with the defaults, and skip the channel scan; you only need to reach the ordinary TV screen, so that **Menu** works.
+
    On a multiboot box such as the H11S, put OpenATV 8 in a spare slot, so the old image stays as it was: **Menu, Setup, Software Management, Flash online**, the newest OpenATV 8 build for your box, then a free slot.
 
    Flash online needs a USB stick or disc to download to; without one it says "could not find suitable media". Then flash from a PC over SSH instead. For the H11S, the newest `_multi.zip` is at `images.mynonpublic.com/openatv/8.0/zgemmah11s/`:
@@ -43,7 +45,7 @@ Tested on a Zgemma H11S. Other Enigma2 boxes with a DVB-S2 tuner should work the
 
 3. **Time:** **Menu, Setup, System, Time**: time synchronisation by NTP. Lynx also puts the clock right after a power cut, since the box has no battery-backed clock.
 
-4. **Stream players:** Lynx's installer adds ServiceApp with gstplayer and exteplayer3 from the box's own feed, so there is nothing to do here. Without them the box's own player is used for streams, and on the H11S most streams then give sound without a picture.
+4. **Stream players: Nothing to do.** For information only: Lynx's installer adds the stream players it needs (ServiceApp with gstplayer and exteplayer3) by itself. There is no stream menu to find.
 
 ## 2. Installing Lynx
 
@@ -59,7 +61,11 @@ Then, on the box:
 opkg update && opkg upgrade
 wget -qO- https://raw.githubusercontent.com/G8YTZ/Lynx-Enigma2/main/tools/install.sh | sh
 ```
-The first line brings the box's own software up to date. The second installs the stream players, downloads the latest Lynx from GitHub, installs it and restarts the box's GUI. Then open **Plugins, UK ATV Repeaters**, press **blue** for Settings, enter your locator (such as JO01 or JO01AJ), and switch on **Open Lynx at start-up** if the box is to be a repeater receiver first. Save with **green**.
+The first line brings the box's own software up to date. The second installs the stream players, downloads the latest Lynx from GitHub, installs it and restarts the box's GUI. Then open **Plugins, UK ATV Repeaters**. The first time, Lynx opens its settings by itself:
+- **Your locator** (such as JO01 or JO01AJ): Type it with the number keys, or press **TEXT** for an on-screen keyboard. Upper or lower case both work.
+- **Open Lynx at start-up:** Switch it on, and the box goes straight to Lynx whenever it starts, instead of the TV screen.
+
+Save with **green**. The settings are always on **blue** in the Lynx list.
 
 **From a PC instead** (for working on Lynx itself): clone this repository, or download it with GitHub's **Code, Download ZIP**, and from its folder run `tools/deploy.sh <box address>`. That copies your copy of Lynx to the box and restarts the GUI.
 
@@ -91,6 +97,7 @@ rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters; /sbin/init 4; s
 - **Tuning by hand:** **MENU, Tune by hand**: type the frequency in MHz (1249, say) with the number keys and choose the symbol rate (1, 1.5, 2, 3 or 4 MS/s, or **Not sure: try them all**). **OK** or **green** watches it. To keep it, give it a name and press **yellow**: it goes at the top of the list as a preset, and **MENU** on a preset changes or deletes it. Presets are kept on the box and survive Lynx updates.
 - **EXIT or red** (**Stop** or **Close menu**): Stops a tune in progress, or takes you back to the picture. Left alone for 10 seconds while something is playing, the list goes back to the picture by itself.
 - **Stream only:** Repeaters on the BATC streamer but not on the UK list (DB0OZ Bremen, say) are at the end; OK or yellow watches them.
+- **A member's stream:** **MENU, Add a BATC stream by its name**: type the end of its address on the BATC streamer (for batc.org.uk/live/g4fre, that is g4fre). It goes at the top of the list as a preset, marked LIVE while it is streaming; OK watches it.
 
 **The Lynx bar,** while watching:
 - **The magic eye:** Its dark wedge narrows as the signal gets stronger and the margin grows, and closes on a strong, clean signal. Wide open means you are near the edge; dark means no lock.
@@ -107,6 +114,8 @@ rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters; /sbin/init 4; s
 
 ## 5. Troubleshooting
 
+- **Lynx does not open when the box starts:** Switch on **Open Lynx at start-up** in Lynx's settings (**blue**).
+- **The locator will not go in:** Some boxes put a space or a symbol before the 0 on the number keys. Lynx ignores those now; or press **TEXT** for the on-screen keyboard.
 - **"No tuner set up":** Tuner A is not configured; see step 2 of setting up.
 - **"No signal" on a repeater you can receive:** Its listed symbol rate may be wrong. Use **MENU, Watch ... trying every symbol rate**.
 - **Sound but no picture on a stream:** Press **yellow** on the bar to try the other player, or select the stream again: these players can miss the picture when they join a stream between keyframes. A stream whose keyframes are far apart (GB3NQ, October 2026) can stay sound-only; that is for its keeper to fix.

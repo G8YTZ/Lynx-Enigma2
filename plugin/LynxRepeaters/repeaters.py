@@ -35,6 +35,7 @@ import io
 import json
 import math
 import os
+import re
 import sys
 
 BOX_LO_MHZ = 9750          # the box's universal LNB, low band
@@ -90,7 +91,7 @@ def tunable(freq_mhz, lnb_osc_mhz=0):
 
 def locator_to_latlon(loc):
     """Maidenhead locator (4 or 6 characters) to the middle of its square."""
-    loc = (loc or "").strip().upper()
+    loc = clean_locator(loc)
     if len(loc) < 4:
         return None
     try:
@@ -150,9 +151,16 @@ def watchable(repeaters, lnb_osc=None):
     return out
 
 
+def clean_locator(loc):
+    """A locator as typed with the remote: any case, and the spaces and
+    punctuation the number keys slip in (key 0 gives a space first on some
+    images; G4FRE, 23 Oct 2026, found it hard to enter) taken out."""
+    return re.sub(r"[^A-Za-z0-9]", "", loc or "").upper()
+
+
 def valid_locator(loc):
     """A 4 or 6 character Maidenhead locator, such as JO01 or JO01AJ."""
-    loc = (loc or "").strip().upper()
+    loc = clean_locator(loc)
     if len(loc) not in (4, 6):
         return False
     ok = "A" <= loc[0] <= "R" and "A" <= loc[1] <= "R" and loc[2:4].isdigit()
@@ -229,10 +237,20 @@ def manual_entry(freq_mhz, sr_ks=None, name="", lnb_osc=None):
     }
 
 
+# A BATC stream name, as in rtmp://rtmp.batc.org.uk/live/<name>.
+STREAM_KEY = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
+
+
 def _preset(p):
-    """A preset as saved, or None if it is not one."""
+    """A preset as saved, or None if it is not one. Two kinds: on air
+    (name, freq_mhz, sr_ks) and a BATC stream by its name (name, stream),
+    for a member's stream that is not on the repeater list (G4FRE's idea,
+    23 Oct 2026)."""
     try:
         name = str(p["name"]).strip()
+        if p.get("stream") is not None:
+            key = str(p["stream"]).strip()
+            return {"name": name, "stream": key} if name and STREAM_KEY.match(key) else None
         freq = float(p["freq_mhz"])
         sr = p.get("sr_ks")
         sr = int(sr) if sr else None

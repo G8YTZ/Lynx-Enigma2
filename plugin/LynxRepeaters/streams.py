@@ -118,6 +118,19 @@ def for_call(streams, call):
 _CALL = re.compile(r"^[A-Z0-9]{1,3}[0-9][A-Z0-9]{1,4}$")
 
 
+def member_stream(streams, key, name=None):
+    """A stream asked for by its name (a preset): the live list's entry if
+    it is streaming now (and listed), else one built from the name, which
+    plays if it is live but unlisted. None for a name that is not one."""
+    key = (key or "").strip()
+    if not _KEY.match(key):
+        return None
+    for s in streams:
+        if s["key"].lower() == key.lower():
+            return dict(s, live=True)
+    return {"name": name or key.upper(), "key": key, "url": RTMP % key, "repeater": False, "live": False}
+
+
 def stream_only(streams, listed_calls):
     """Streams BATC marks as repeaters that match no repeater on the list
     (DB0OZ Bremen, say): one entry each, callsign and place split from the

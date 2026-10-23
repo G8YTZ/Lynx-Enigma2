@@ -451,6 +451,29 @@ def test_presets(tmp=None):
     assert repeaters.load_presets(path) == []
 
 
+def test_locator_as_typed():
+    assert repeaters.clean_locator(" jo 01aj ") == "JO01AJ"
+    assert repeaters.valid_locator("jo01 aj") and repeaters.valid_locator("Jo01Aj")
+    assert repeaters.locator_to_latlon("jo01aj") == repeaters.locator_to_latlon("JO01AJ")
+
+
+def test_stream_presets():
+    import tempfile
+    from LynxRepeaters import streams
+    path = os.path.join(tempfile.mkdtemp(), "p.json")
+    ps = repeaters.put_preset([], {"name": "G4FRE", "stream": "g4fre"})
+    ps = repeaters.put_preset(ps, {"name": "Lynx-Tx", "freq_mhz": 1312.0, "sr_ks": 1000})
+    repeaters.save_presets(ps, path)
+    assert repeaters.load_presets(path) == ps
+    assert repeaters._preset({"name": "x", "stream": "rtmp://evil host/x"}) is None
+    live = [{"name": "G4FRE Orpington", "key": "G4FRE", "url": streams.RTMP % "G4FRE", "repeater": False}]
+    s = streams.member_stream(live, "g4fre", "G4FRE")
+    assert s["live"] and s["name"] == "G4FRE Orpington"
+    s = streams.member_stream([], "g4fre", "Dave")
+    assert not s["live"] and s["url"] == "rtmp://rtmp.batc.org.uk/live/g4fre" and s["name"] == "Dave"
+    assert streams.member_stream([], "no spaces allowed") is None
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

@@ -72,6 +72,9 @@ SR_CHOICES = [(str(r), "%g MS/s" % (r / 1000.0)) for r in repeaters.MANUAL_SR_KS
     ("any", _("Not sure: try them all"))]
 cfg.manual_freq = ConfigInteger(default=1249, limits=(950, 10500))
 cfg.manual_sr = ConfigSelection(default="1500", choices=SR_CHOICES)
+# Settings open by themselves the first time Lynx opens (G4FRE and others
+# had not found them, 23 Oct 2026).
+cfg.welcomed = ConfigYesNo(default=False)
 
 
 def video_signs(session):
@@ -100,7 +103,7 @@ def lnb_osc():
 
 
 def home():
-    loc = cfg.locator.value.strip().upper()
+    loc = repeaters.clean_locator(cfg.locator.value)
     return repeaters.locator_to_latlon(loc) if repeaters.valid_locator(loc) else None
 
 
@@ -258,6 +261,9 @@ class RepeaterList(Screen):
         self.onClose.append(lambda: self.sync.listeners.remove(self.refresh))
         self.onLayoutFinish.append(self.refresh)
         self.onLayoutFinish.append(self._adopt_playing)
+        self.welcome_timer, self._wlt = _timer(self._welcome_now)
+        self.onClose.append(self.welcome_timer.stop)
+        self.onShown.append(self._welcome)
         if cfg.streams.value and self.sync.stale():
             self.sync.refresh()
 
@@ -274,6 +280,13 @@ class RepeaterList(Screen):
         rows = []
         # Your own presets first: they are what you put there to find.
         for p in self.presets:
+            if p.get("stream"):
+                s = streams.member_stream(self.sync.streams, p["stream"], p["name"])
+                e = {"call": p["name"], "town": _("BATC stream"), "stream": s, "stream_only": True,
+                     "preset": True, "km": None, "approx": False, "status": "on"}
+                rows.append((e, _("Preset"), e["call"], "", _("BATC stream"), "", WHITE,
+                             _("LIVE") if s.get("live") else ""))
+                continue
             e = repeaters.manual_entry(p["freq_mhz"], p["sr_ks"], p["name"], lnb_osc())
             if not e:
                 continue                  # an LNB setting has put it out of reach
@@ -295,7 +308,7 @@ class RepeaterList(Screen):
                 e = dict(x, stream_only=True, km=None, approx=False, status="on")
                 rows.append((e, e["call"], e["town"], "", _("Stream only"), "", WHITE, _("LIVE")))
         self["list"].setList(rows)
-        loc = cfg.locator.value.strip().upper()
+        loc = repeaters.clean_locator(cfg.locator.value)
         self["where"].setText(_("From %s") % loc if here else _("Set your locator in Settings (blue)"))
         self._selected()
 
@@ -313,6 +326,15 @@ class RepeaterList(Screen):
             self["key_yellow"].setText("")
             self["call"].setText("")
             self["details"].setText(_("No repeaters to show."))
+            return
+        if e.get("stream_only") and e.get("preset"):
+            s = e["stream"]
+            self["call"].setText(e["call"])
+            self["details"].setText("\n".join([_("Your preset: a BATC stream"), "", s["url"], "",
+                                               _("MENU to change or delete it")]))
+            self["live"].setText(_("Streaming now: OK or yellow to watch") if s.get("live")
+                                 else _("Not in BATC's live list now: OK tries it anyway"))
+            self["key_yellow"].setText(_("Watch stream") if not self.tuner.busy else "")
             return
         if e.get("stream_only"):
             self["call"].setText(e["call"])
@@ -573,18 +595,19 @@ class RepeaterList(Screen):
     def menu(self):
         e = self._current()
         choices = []
-        if e and e.get("stream_only"):
-            choices.append((_("Watch %s on the BATC streamer") % e["call"], self.watch_stream))
-        elif e and e.get("preset"):
+        if e and e.get("preset"):
             choices.append((_("Watch %s") % e["call"], self.watch))
             choices.append((_("Change preset %s") % e["call"], lambda: self.manual(e)))
             choices.append((_("Delete preset %s") % e["call"], lambda: self.delete_preset(e)))
+        elif e and e.get("stream_only"):
+            choices.append((_("Watch %s on the BATC streamer") % e["call"], self.watch_stream))
         elif e:
             choices.append((_("Watch %s on air") % e["call"], self.watch))
             if e.get("stream"):
                 choices.append((_("Watch %s on the BATC streamer") % e["call"], self.watch_stream))
             choices.append((_("Watch %s, trying every symbol rate") % e["call"], self.hunt))
         choices.append((_("Tune by hand (frequency and symbol rate)"), self.manual))
+        choices.append((_("Add a BATC stream by its name (a member's stream)"), self.add_stream))
         if cfg.streams.value:
             choices.append((_("Check BATC for live streams now"), self.sync.refresh))
         choices.append((_("Settings"), self.settings))
@@ -603,6 +626,8 @@ class RepeaterList(Screen):
     def manual(self, preset_entry=None):
         if self.tuner.busy:
             return
+        if preset_entry and preset_entry.get("stream_only"):
+            return self.add_stream(preset_entry)
         preset = None
         if preset_entry:
             o = preset_entry["output"]
@@ -622,6 +647,13 @@ class RepeaterList(Screen):
             self.watch(entry=x)
         elif what == "saved":
             self._select_preset(x)
+
+    def add_stream(self, preset_entry=None):
+        preset = None
+        if preset_entry:
+            preset = {"name": preset_entry["call"], "stream": preset_entry["stream"]["key"]}
+        self.idle_timer.stop()
+        self.session.openWithCallback(self._manual_closed, AddStream, preset)
 
     def _select_preset(self, name):
         for i, row in enumerate(self["list"].list):
@@ -648,6 +680,22 @@ class RepeaterList(Screen):
         if not self.tuner.busy:
             self.idle_timer.stop()
             self.session.openWithCallback(self._settings_closed, LynxSettings)
+
+    def _welcome(self):
+        """The first time Lynx opens, its settings, so the locator and Open
+        Lynx at start-up are not missed. Not for a box already set up."""
+        if cfg.welcomed.value:
+            return
+        cfg.welcomed.value = True
+        cfg.welcomed.save()
+        configfile.save()
+        if not cfg.locator.value.strip():
+            self.welcome_timer.start(300, True)      # once the list is on screen
+
+    def _welcome_now(self):
+        if self.session.current_dialog is self and not self.tuner.busy:
+            self.idle_timer.stop()
+            self.session.openWithCallback(self._settings_closed, LynxSettings, True)
 
     def _settings_closed(self, *args):
         self._child_closed()
@@ -809,7 +857,7 @@ class LynxSettings(ConfigListScreen, Screen):
   <widget source="key_green" render="Label" position="416,580" size="300,44" font="Regular;30" valign="center" transparent="1"/>
 </screen>""")
 
-    def __init__(self, session):
+    def __init__(self, session, welcome=False):
         Screen.__init__(self, session)
         self.setTitle(_("Lynx settings"))
         items = [
@@ -823,8 +871,14 @@ class LynxSettings(ConfigListScreen, Screen):
             getConfigListEntry(_("Player for streams"), cfg.player),
         ]
         ConfigListScreen.__init__(self, items, session=session)
-        self["help"] = Label(_("The LNB supply stays on to power inline preamplifiers. "
-                               "Use the number keys to type the locator. Lynx-Enigma2 %s") % VERSION)
+        if welcome:
+            text = _("Welcome to Lynx. Enter your locator, so the list is sorted by distance, and switch on "
+                     "Open Lynx at start-up to come straight here whenever the box starts. Green saves.")
+        else:
+            text = _("Type the locator with the number keys, or press TEXT for an on-screen keyboard; "
+                     "upper or lower case both work. The LNB supply stays on for inline preamplifiers. "
+                     "Lynx-Enigma2 %s") % VERSION
+        self["help"] = Label(text)
         self["key_red"] = StaticText(_("Cancel"))
         self["key_green"] = StaticText(_("Save"))
         self["lynx_actions"] = ActionMap(["SetupActions", "ColorActions"], {
@@ -835,7 +889,7 @@ class LynxSettings(ConfigListScreen, Screen):
         }, -2)
 
     def save(self):
-        loc = cfg.locator.value.strip().upper()
+        loc = repeaters.clean_locator(cfg.locator.value)
         if loc and not repeaters.valid_locator(loc):
             self.session.open(MessageBox, _("%s is not a locator. Use four or six characters, such as JO01 or JO01AJ.") % loc,
                               MessageBox.TYPE_ERROR)
@@ -948,4 +1002,64 @@ class ManualTune(ConfigListScreen, Screen):
             self.session.open(MessageBox, _("Could not save the preset: %s") % err, MessageBox.TYPE_ERROR)
             return
         log("preset saved: %s" % preset)
+        self.close(("saved", name))
+
+
+class AddStream(ConfigListScreen, Screen):
+    """A BATC stream by its name, kept as a preset: for a member's stream
+    that is not on the repeater list (G4FRE, 23 Oct 2026). The name is the
+    end of its address, batc.org.uk/live/<name>."""
+    skin = _scale("""
+<screen name="LynxAddStream" position="center,center" size="1300,520" title="Add a BATC stream" backgroundColor="#00141414" flags="wfNoBorder">
+  <eLabel position="0,0" size="1300,90" backgroundColor="#00d0021b"/>
+  <widget name="title" position="40,0" size="1200,90" font="Regular;40" valign="center" foregroundColor="#00ffffff" backgroundColor="#00d0021b"/>
+  <widget name="config" position="30,110" size="1240,110" font="Regular;30" itemHeight="50" scrollbarMode="showOnDemand" backgroundColor="#00141414"/>
+  <widget name="help" position="40,240" size="1220,190" font="Regular;26" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
+  <eLabel position="40,450" size="8,44" backgroundColor="#00d0021b"/>
+  <widget source="key_red" render="Label" position="56,450" size="300,44" font="Regular;30" valign="center" transparent="1"/>
+  <eLabel position="400,450" size="8,44" backgroundColor="#0000a03c"/>
+  <widget source="key_green" render="Label" position="416,450" size="300,44" font="Regular;30" valign="center" transparent="1"/>
+</screen>""")
+
+    def __init__(self, session, preset=None):
+        Screen.__init__(self, session)
+        self.preset = preset
+        self.key = ConfigText(default=preset["stream"] if preset else "", fixed_size=False)
+        self.label = ConfigText(default=preset["name"] if preset else "", fixed_size=False)
+        title = _("Change preset %s") % preset["name"] if preset else _("Add a BATC stream")
+        self.setTitle(title)
+        self["title"] = Label(title)
+        ConfigListScreen.__init__(self, [
+            getConfigListEntry(_("Stream name (batc.org.uk/live/...)"), self.key),
+            getConfigListEntry(_("Name in the list (optional)"), self.label),
+        ], session=session)
+        self["help"] = Label(_("The stream name is the end of its address on the BATC streamer: for "
+                               "batc.org.uk/live/g4fre it is g4fre. Press TEXT for an on-screen keyboard. "
+                               "It goes at the top of the Lynx list, marked LIVE while it is streaming."))
+        self["key_red"] = StaticText(_("Cancel"))
+        self["key_green"] = StaticText(_("Save"))
+        self["lynx_actions"] = ActionMap(["SetupActions", "ColorActions"], {
+            "save": self.keep,
+            "green": self.keep,
+            "cancel": lambda: self.close(None),
+            "red": lambda: self.close(None),
+        }, -2)
+
+    def keep(self):
+        key = self.key.value.strip()
+        # People paste or type the whole address: keep only its last part.
+        key = key.rstrip("/").split("/")[-1]
+        if not repeaters.STREAM_KEY.match(key):
+            self.session.open(MessageBox, _("Type the stream's name: the end of its address on the BATC "
+                                            "streamer, such as g4fre."), MessageBox.TYPE_ERROR)
+            return
+        name = self.label.value.strip() or key.upper()
+        preset = {"name": name, "stream": key}
+        replacing = self.preset["name"] if self.preset else None
+        try:
+            repeaters.save_presets(repeaters.put_preset(repeaters.load_presets(), preset, replacing))
+        except (IOError, OSError) as err:
+            self.session.open(MessageBox, _("Could not save the preset: %s") % err, MessageBox.TYPE_ERROR)
+            return
+        log("stream preset saved: %s" % preset)
         self.close(("saved", name))
