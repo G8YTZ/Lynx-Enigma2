@@ -34,7 +34,11 @@ Tested on a Zgemma H11S. Other Enigma2 boxes with a DVB-S2 tuner should work the
 
    On a multiboot box such as the H11S, put OpenATV 8 in a spare slot, so the old image stays as it was: **Menu, Setup, Software Management, Flash online**, the newest OpenATV 8 build for your box, then a free slot.
 
-   Flash online needs a USB stick or disc to download to; without one it says "could not find suitable media". Then flash from a PC over SSH instead. For the H11S, the newest `_multi.zip` is at `images.mynonpublic.com/openatv/8.0/zgemmah11s/`:
+   Flash online needs a USB stick or disc to download to; without one it says "could not find suitable media". Then flash from a PC over SSH instead. The image server no longer shows its folders, so ask it for the newest OpenATV 8 image's address (on a Mac or Linux; `zgemmah11s` is the H11S, so use your box's own name for another model):
+   ```
+   curl -sL https://images.mynonpublic.com/openatv/json/zgemmah11s | tr ',' '\n' | grep -o 'https[^"]*openatv-8[^"]*_multi.zip' | sed 's#\\##g' | sort | tail -1
+   ```
+   Then, with that address:
    ```
    ssh root@<box> 'mkdir -p /home/root/flash && cd /home/root/flash && wget -O image.zip <multi.zip address> && unzip -o image.zip'
    ssh root@<box> 'nohup /usr/bin/ofgwrite -r -k -m2 /home/root/flash/h11 > /home/root/flash/ofgwrite.log 2>&1 &'
