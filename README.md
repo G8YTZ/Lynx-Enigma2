@@ -38,7 +38,7 @@ Tested on a Zgemma H11S. Other Enigma2 boxes with a DVB-S2 tuner should work the
    ```
    curl -sL https://images.mynonpublic.com/openatv/json/zgemmah11s | tr ',' '\n' | grep -o 'https[^"]*openatv-8[^"]*_multi.zip' | sed 's#\\##g' | sort | tail -1
    ```
-   Then, with that address:
+   On 26 October 2026 that was [openatv-8.0.1-zgemmah11s-20261026_multi.zip](https://images.mynonpublic.com/openatv/8.0/zgemmah11s/openatv-8.0.1-zgemmah11s-20261026_multi.zip); newer builds replace it, so the line above is the way to be sure. Then, with that address:
    ```
    ssh root@<box> 'mkdir -p /home/root/flash && cd /home/root/flash && wget -O image.zip <multi.zip address> && unzip -o image.zip'
    ssh root@<box> 'nohup /usr/bin/ofgwrite -r -k -m2 /home/root/flash/h11 > /home/root/flash/ofgwrite.log 2>&1 &'
