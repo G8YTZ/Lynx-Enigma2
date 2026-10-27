@@ -119,7 +119,13 @@ The first time, Lynx opens its settings by itself; after that they are on **blue
 | **Player for streams** | Which player plays BATC streams. | **Automatic** (gstplayer, then exteplayer3 on yellow). |
 | **Lynx updates at start-up** | At each start, looks for a newer Lynx. | **Ask before installing**, or **Install by itself** on a box nobody watches. |
 
-Press **green** to save. The list is then sorted from your locator, and Lynx is ready to watch.
+**Entering your locator:**
+1. With **Your locator** highlighted, press **TEXT** for the on-screen keyboard (easiest), or type straight in with the number keys as on an old phone: press a key repeatedly to step through its letters (**5** for J, **6** three times for O).
+2. Type four or six characters, such as **JO01** or **JO01AJ**. Six gives a more exact distance. Upper or lower case both work, and Lynx ignores any stray spaces or symbols the number keys slip in.
+3. On the keyboard, finish with its **OK** or **green** to put the text in.
+4. Don't know yours? Look up your address on a locator map such as [QRZ's grid mapper](https://www.qrz.com/gridmapper), or ask a local amateur.
+
+Then press **green** to save. The list is sorted from your locator, and Lynx is ready to watch.
 
 **From a PC instead** (for working on Lynx itself): clone this repository, or download it with GitHub's **Code, Download ZIP**, and from its folder run `tools/deploy.sh <box address>`. That copies your copy of Lynx to the box and restarts the GUI.
 
