@@ -82,7 +82,7 @@ Then, on the box:
 opkg update && opkg upgrade
 wget -qO- https://raw.githubusercontent.com/G8YTZ/Lynx-Enigma2/main/tools/install.sh | sh
 ```
-The first line brings the box's own software up to date. The second installs the stream players, downloads the latest Lynx from GitHub, installs it and restarts the box's GUI. Then open **Plugins, UK ATV Repeaters**. The first time, Lynx opens its settings by itself:
+The first line brings the box's own software up to date: **only on OpenATV 8 or later.** On an older image (the 2021 one a box may come with) it can fail part-way and leave the box worse off; flash OpenATV 8 first (section 1). The second installs the stream players, downloads the latest Lynx from GitHub, installs it and restarts the box's GUI. Then open **Plugins, UK ATV Repeaters**. The first time, Lynx opens its settings by itself:
 - **Your locator** (such as JO01 or JO01AJ): Type it with the number keys, or press **TEXT** for an on-screen keyboard. Upper or lower case both work.
 - **Open Lynx at start-up:** Switch it on, and the box goes straight to Lynx whenever it starts, instead of the TV screen.
 
