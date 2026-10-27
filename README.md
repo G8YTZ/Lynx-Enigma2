@@ -100,11 +100,26 @@ wget -qO- https://raw.githubusercontent.com/G8YTZ/Lynx-Enigma2/main/tools/instal
 ```
 The first brings OpenATV 8 up to date ("No packages installed or removed" means it already was). The second installs the stream players (nothing for you to set up), downloads the latest Lynx, installs it and restarts the box's GUI. It ends with "Lynx: installed; restarting the GUI".
 
-**Open Lynx:** On the remote, **Menu**, then the plugin browser (**Plugins**), then **UK ATV Repeaters**. The first time, Lynx opens its settings by itself:
-- **Your locator** (such as JO01 or JO01AJ): Type it with the number keys, or press **TEXT** for an on-screen keyboard. Upper or lower case both work.
-- **Open Lynx at start-up:** Switch it on, and the box goes straight to Lynx whenever it starts, instead of the TV screen.
+**Open Lynx:** On the remote, **Menu**, then the plugin browser (**Plugins**), then **UK ATV Repeaters**.
 
-Save with **green**. The settings are always on **blue** in the Lynx list.
+### Lynx's settings
+
+The first time, Lynx opens its settings by itself; after that they are on **blue** in the Lynx list. **Up and down** pick a line, **left and right** change it, **green** saves, **red** goes back without saving.
+
+| Setting | What it does | Choose |
+|---|---|---|
+| **Your locator** | Sorts the list by distance from you. Type it with the number keys, or press **TEXT** for an on-screen keyboard; upper or lower case both work. | Yours, such as JO01 or JO01AJ. |
+| **LNB supply on the cable** | The DC the box puts up the coax: 13 V, 18 V or off. | **13 V** to power an inline preamp (the cooler choice); **off** for a feed with no preamp, or an antenna that is a DC short. Off also cuts power to a 19.2°E dish on the same tuner. |
+| **9 cm LNB oscillator** | For 9 cm repeaters through a C-band LNB. | 5150 unless your LNB says otherwise. |
+| **3 cm LNB oscillator** | For 10 GHz repeaters. A standard 9750 MHz LNB puts them below the tuner, so they need a 9 GHz one. | 9000 with a 9 GHz LNB. |
+| **Show repeaters listed as off air** | Includes repeaters the RSGB list marks as off air. | **No**, unless you are checking one. |
+| **Open Lynx at start-up** | The box goes straight to Lynx whenever it starts, instead of the TV screen. | **Yes** on a box kept for ATV. |
+| **BATC live streams** | Checks the BATC streamer every hour: LIVE markers, stream-only repeaters, and the BATC Live channel list. | **Yes**. |
+| **Every BATC stream in the list** | Adds every stream on the BATC streamer at the end of the list, members' and event streams too, offline ones greyed. | Your choice; **No** keeps the list to repeaters. |
+| **Player for streams** | Which player plays BATC streams. | **Automatic** (gstplayer, then exteplayer3 on yellow). |
+| **Lynx updates at start-up** | At each start, looks for a newer Lynx. | **Ask before installing**, or **Install by itself** on a box nobody watches. |
+
+Press **green** to save. The list is then sorted from your locator, and Lynx is ready to watch.
 
 **From a PC instead** (for working on Lynx itself): clone this repository, or download it with GitHub's **Code, Download ZIP**, and from its folder run `tools/deploy.sh <box address>`. That copies your copy of Lynx to the box and restarts the GUI.
 
@@ -133,7 +148,7 @@ rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters; /sbin/init 4; s
 **The list:**
 - **OK or green:** Watch the highlighted repeater on air. Lynx scans its one transponder and plays the programme it finds.
 - **Yellow:** Watch its BATC stream instead (repeaters marked LIVE).
-- **Blue:** Settings: locator, LNB supply (13 V vertical, 18 V horizontal, or off), the 9 cm and 3 cm LNB oscillators, whether to show repeaters listed as off air, Open Lynx at start-up, the BATC live streams, **every BATC stream in the list** (members' and event streams too, offline ones greyed, at the end), the player for streams, and Lynx updates at start-up.
+- **Blue:** Settings (see [Lynx's settings](#lynxs-settings)).
 - **0:** Update the LIVE markers now: asks BATC which streams are live, instead of waiting for the hourly check.
 - **MENU:** Every choice in one place, including watching on air while trying every symbol rate (for a listed rate that is wrong), updating the stream status, and **Leave Lynx**.
 - **Tuning by hand:** **MENU, Tune by hand**: type the frequency in MHz (1249, say) with the number keys and choose the symbol rate (1, 1.5, 2, 3 or 4 MS/s, or **Not sure: try them all**). **OK** or **green** watches it. To keep it, give it a name and press **yellow**: it goes at the top of the list as a preset, and **MENU** on a preset changes or deletes it. Presets are kept on the box and survive Lynx updates.
