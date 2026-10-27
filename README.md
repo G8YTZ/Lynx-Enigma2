@@ -26,22 +26,28 @@ LNB power is on by default, to feed the small inline preamplifiers that run from
 
 ## 1. Setting up the box
 
-Tested on a Zgemma H11S. Other Enigma2 boxes with a DVB-S2 tuner should work the same way.
+Tested on a Zgemma H11S. Other Enigma2 boxes with a DVB-S2 tuner should work the same way. Lynx needs **OpenATV 8 or later** (7.x is end of life; the older images a box may come with miss the picture on many BATC streams). Already on OpenATV 8? Go straight to step 3.
 
-1. **A current image:** OpenATV 8 or later (7.x is end of life). Older images (Python 2, 2021 and before) run Lynx, but their stream players miss the picture on many BATC streams.
+### Step 1: First power-up (the image the box came with)
 
-   **A new box** runs its own set-up wizard the first time it powers up: language, screen, network, then tuner and a channel scan. Plug the network cable in first. Answer the questions with the defaults, and skip the channel scan; you only need to reach the ordinary TV screen, so that **Menu** works.
+Plug in the network cable first. The box runs its own set-up wizard; you only need it to reach the network, as this image is about to be replaced:
+- **Language:** English (GB).
+- **Network:** Enabled **Yes**.
+- **Everything else:** Accept what it offers, and skip the tuner set-up and the channel scan.
 
-   On a multiboot box such as the H11S, put OpenATV 8 in a spare slot, so the old image stays as it was: **Menu, Setup, Software Management, Flash online**, the newest OpenATV 8 build for your box, then a free slot.
+Then note the box's address: **Menu, Setup, System, Network** (such as 192.168.0.80). **Do not run a software update on this image**: on an old image it can fail part-way and leave the box worse off.
 
-   Flash online needs a USB stick or disc to download to; without one it says "could not find suitable media". Then flash it from a computer instead, in four steps. The commands are the same on a Mac and on Windows.
+### Step 2: Put OpenATV 8 on it
+
+On a multiboot box such as the H11S, OpenATV 8 goes in a spare slot, so the image the box came with stays as it was: your way back.
+
+**With a USB stick in the box:** **Menu, Setup, Software Management, Flash online**, the newest OpenATV 8 build for your box, then a free slot. Without a stick or disc it says "could not find suitable media"; then use a computer, as follows. The commands are the same on a Mac and on Windows.
 
    **a. Open a command window.**
    - **Mac:** Open **Terminal** (Applications, Utilities).
    - **Windows 10 or 11:** Open **PowerShell** (type PowerShell in the Start menu).
 
-   **b. Find three things:**
-   - **The box's address:** On the box, **Menu, Setup, System, Network** (such as 192.168.0.80).
+   **b. Find two more things:**
    - **A free slot:** On the box, **Menu, Standby / Restart, Multiboot Image Selector** lists what is in each slot. Pick an empty one (2, 3 or 4). Never the slot with the image the box came with: that is your way back.
    - **The image's address:** In a browser, open [images.mynonpublic.com/openatv](https://images.mynonpublic.com/openatv/), choose your box (zgemmah11s for the H11S), then the newest **8.x** `_multi.zip`, and copy its link. On 26 October 2026 that was `https://images.mynonpublic.com/openatv/8.0/zgemmah11s/openatv-8.0.1-zgemmah11s-20261026_multi.zip`.
 
@@ -62,39 +68,39 @@ Tested on a Zgemma H11S. Other Enigma2 boxes with a DVB-S2 tuner should work the
    ```
    The box's screen shows the progress. When it says it has flashed, choose that slot in the **Multiboot Image Selector** (Menu, Standby / Restart); the old image may list it oddly (such as "Type root to log in with supervisor privileges"), which is fine. The box restarts with the OpenATV 8 logo.
 
-   **e. OpenATV 8's set-up wizard:**
-   - **Language:** English (GB).
-   - **Video:** Automatic mode selection **Yes**, then **2160p 50 Hz** on a 4K TV or monitor, or the best mode yours supports. Pick 50 Hz in Europe, not 30 or 60.
-   - **Network:** Enabled **Yes**; **Wake on LAN** is worth switching on too.
-   - **Time:** Synchronise the time using **NTP**.
-   - **Tuner:** Configuration mode **Simple**, **Single** (see step 2).
-   - **Channel scan:** Skip it; Lynx does not need one.
+### Step 3: OpenATV 8's set-up wizard
 
-   **f. Install Lynx again (section 2).** Each slot is a separate system: anything installed in the old image, Lynx included, is not in the new one. After a reflash, SSH may warn that the box's "host key has changed": clear the old key on your computer with `ssh-keygen -R <box address>` and log in again.
+- **Language:** English (GB).
+- **Video:** Automatic mode selection **Yes**, then **2160p 50 Hz** on a 4K TV or monitor, or the best mode yours supports. Pick 50 Hz in Europe, not 30 or 60.
+- **Network:** Enabled **Yes**; **Wake on LAN** is worth switching on too.
+- **Time:** Synchronise the time using **NTP**.
+- **Tuner:** Configuration mode **Simple**, **Single**, then the satellite: choose the **Astra Ku band option at 19.2°E** (its exact name varies between images, such as "Astra 1KR/1L/1M/1N (19.2E)").
+- **Channel scan:** Skip it; Lynx does not need one.
 
-2. **Tuner:** **Menu, Setup, Tuner Configuration, Tuner A**: configuration mode **Simple**, **Single**, then the satellite: choose the **Astra Ku band option at 19.2°E** (its exact name varies between images, such as "Astra 1KR/1L/1M/1N (19.2E)"), then save. The wizard on a new box may ask this too: give the same answer. Check this even after the wizard: on OpenATV 8 it can leave tuner A "not configured", and Lynx cannot tune anything until it is set (it says so). Nothing else needs changing for 23 cm; Lynx works out the frequencies.
+### Step 4: Check the tuner
 
-3. **Time:** **Menu, Setup, System, Time**: time synchronisation by NTP. Lynx also puts the clock right after a power cut, since the box has no battery-backed clock.
-
-4. **Stream players: Nothing to do.** For information only: Lynx's installer adds the stream players it needs (ServiceApp with gstplayer and exteplayer3) by itself. There is no stream menu to find.
+**Menu, Setup, Tuner Configuration, Tuner A** should show **Simple**, **Single** and the Astra 19.2°E option; set it and save if not. The wizard can leave tuner A "not configured", and Lynx cannot tune anything until it is set (it says so). Nothing else needs changing for 23 cm; Lynx works out the frequencies.
 
 ## 2. Installing Lynx
 
-Lynx installs from the box itself, over the network. You need a way to type commands on the box:
+Lynx installs from the box itself, over the network. It goes into the image you are running: each slot is a separate system, so Lynx installed in the old image is not in OpenATV 8.
 
+**Log in to the box:**
 - **Mac or Linux:** Open Terminal and type `ssh root@<box address>`.
 - **Windows 10 or 11:** Open PowerShell and type the same.
 
-The box's address is under **Menu, Setup, System, Network**. OpenATV's root login has no password; answer `yes` if asked whether to trust the box the first time. You are on the box when the prompt changes to something like `root@zgemmah11s:~#`.
+OpenATV's root login has no password; answer `yes` if asked whether to trust the box. You are on the box when the prompt changes to something like `root@zgemmah11s:~#`. After a reflash, SSH may refuse with a warning that the box's "host key has changed": clear the old key on your computer with `ssh-keygen -R <box address>` and log in again.
 
-Then type these on the box, **one at a time**, waiting for the prompt to come back after each (pasted together with the login line, they are lost while it connects):
+**Then type these on the box, one at a time,** waiting for the prompt to come back after each (pasted together with the login line, they are lost while it connects):
 ```
 opkg update && opkg upgrade
 ```
 ```
 wget -qO- https://raw.githubusercontent.com/G8YTZ/Lynx-Enigma2/main/tools/install.sh | sh
 ```
-The first line brings the box's own software up to date: **only on OpenATV 8 or later.** On an older image (the 2021 one a box may come with) it can fail part-way and leave the box worse off; flash OpenATV 8 first (section 1). The second installs the stream players, downloads the latest Lynx from GitHub, installs it and restarts the box's GUI. Then open **Plugins, UK ATV Repeaters**. The first time, Lynx opens its settings by itself:
+The first brings OpenATV 8 up to date ("No packages installed or removed" means it already was). The second installs the stream players (nothing for you to set up), downloads the latest Lynx, installs it and restarts the box's GUI. It ends with "Lynx: installed; restarting the GUI".
+
+**Open Lynx:** On the remote, **Menu**, then the plugin browser (**Plugins**), then **UK ATV Repeaters**. The first time, Lynx opens its settings by itself:
 - **Your locator** (such as JO01 or JO01AJ): Type it with the number keys, or press **TEXT** for an on-screen keyboard. Upper or lower case both work.
 - **Open Lynx at start-up:** Switch it on, and the box goes straight to Lynx whenever it starts, instead of the TV screen.
 
@@ -153,7 +159,7 @@ rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters; /sbin/init 4; s
 - **Lynx does not open when the box starts:** Switch on **Open Lynx at start-up** in Lynx's settings (**blue**).
 - **The locator will not go in:** Some boxes put a space or a symbol before the 0 on the number keys. Lynx ignores those now; or press **TEXT** for the on-screen keyboard.
 - **LNB supply off:** It applies from the next tune. It also cuts power to a 19.2E satellite dish on the same tuner, so leave it on if the box watches satellite TV too.
-- **"No tuner set up":** Tuner A is not configured; see step 2 of setting up.
+- **"No tuner set up":** Tuner A is not configured; see step 4 of setting up.
 - **"No signal" on a repeater you can receive:** Its listed symbol rate may be wrong. Use **MENU, Watch ... trying every symbol rate**.
 - **Sound but no picture on a stream:** Press **yellow** on the bar to try the other player, or select the stream again: these players can miss the picture when they join a stream between keyframes. A stream whose keyframes are far apart (GB3NQ, October 2026) can stay sound-only; that is for its keeper to fix.
 - **Lynx's log:** On the box, `cat /tmp/lynx.log` (cleared at each restart). Include it when reporting a problem.
