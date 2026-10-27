@@ -45,6 +45,11 @@ Tested on a Zgemma H11S. Other Enigma2 boxes with a DVB-S2 tuner should work the
    - **A free slot:** On the box, **Menu, Standby / Restart, Multiboot Image Selector** lists what is in each slot. Pick an empty one (2, 3 or 4). Never the slot with the image the box came with: that is your way back.
    - **The image's address:** In a browser, open [images.mynonpublic.com/openatv](https://images.mynonpublic.com/openatv/), choose your box (zgemmah11s for the H11S), then the newest **8.x** `_multi.zip`, and copy its link. On 26 October 2026 that was `https://images.mynonpublic.com/openatv/8.0/zgemmah11s/openatv-8.0.1-zgemmah11s-20261026_multi.zip`.
 
+     Or, on a Mac, let Terminal find the newest one for you (for another box, put its name in place of zgemmah11s):
+     ```
+     curl -sL https://images.mynonpublic.com/openatv/json/zgemmah11s | tr ',' '\n' | grep -o 'https[^"]*openatv-8[^"]*_multi.zip' | sed 's#\\##g' | sort | tail -1
+     ```
+
    **c. Let the box download the image.** Type this as one line, with your box's address and the image's address in place of the examples (the box fetches the image itself; nothing is saved on your computer):
    ```
    ssh root@192.168.0.80 "mkdir -p /home/root/flash && cd /home/root/flash && wget -O image.zip https://images.mynonpublic.com/openatv/8.0/zgemmah11s/openatv-8.0.1-zgemmah11s-20261026_multi.zip && unzip -o image.zip && ls h11"
@@ -56,11 +61,6 @@ Tested on a Zgemma H11S. Other Enigma2 boxes with a DVB-S2 tuner should work the
    ssh root@192.168.0.80 "nohup /usr/bin/ofgwrite -r -k -m2 /home/root/flash/h11 > /home/root/flash/ofgwrite.log 2>&1 &"
    ```
    The box's screen shows the progress. When it says it has flashed, choose that slot in the **Multiboot Image Selector** (Menu, Standby / Restart) and work through OpenATV 8's set-up wizard. No channel scan is needed.
-
-   On a Mac or Linux, this finds the newest image's address for you, instead of the browser:
-   ```
-   curl -sL https://images.mynonpublic.com/openatv/json/zgemmah11s | tr ',' '\n' | grep -o 'https[^"]*openatv-8[^"]*_multi.zip' | sed 's#\\##g' | sort | tail -1
-   ```
 
 2. **Tuner:** **Menu, Setup, Tuner Configuration, Tuner A**: configuration mode **Simple**, **Single**, then the satellite: choose the **Astra Ku band option at 19.2°E** (its exact name varies between images, such as "Astra 1KR/1L/1M/1N (19.2E)"), then save. The wizard on a new box may ask this too: give the same answer. Check this even after the wizard: on OpenATV 8 it can leave tuner A "not configured", and Lynx cannot tune anything until it is set (it says so). Nothing else needs changing for 23 cm; Lynx works out the frequencies.
 
