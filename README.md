@@ -60,7 +60,17 @@ Tested on a Zgemma H11S. Other Enigma2 boxes with a DVB-S2 tuner should work the
    ```
    ssh root@192.168.0.80 "nohup /usr/bin/ofgwrite -r -k -m2 /home/root/flash/h11 > /home/root/flash/ofgwrite.log 2>&1 &"
    ```
-   The box's screen shows the progress. When it says it has flashed, choose that slot in the **Multiboot Image Selector** (Menu, Standby / Restart) and work through OpenATV 8's set-up wizard. No channel scan is needed.
+   The box's screen shows the progress. When it says it has flashed, choose that slot in the **Multiboot Image Selector** (Menu, Standby / Restart); the old image may list it oddly (such as "Type root to log in with supervisor privileges"), which is fine. The box restarts with the OpenATV 8 logo.
+
+   **e. OpenATV 8's set-up wizard:**
+   - **Language:** English (GB).
+   - **Video:** Automatic mode selection **Yes**, then **2160p 50 Hz** on a 4K TV or monitor, or the best mode yours supports. Pick 50 Hz in Europe, not 30 or 60.
+   - **Network:** Enabled **Yes**; **Wake on LAN** is worth switching on too.
+   - **Time:** Synchronise the time using **NTP**.
+   - **Tuner:** Configuration mode **Simple**, **Single** (see step 2).
+   - **Channel scan:** Skip it; Lynx does not need one.
+
+   **f. Install Lynx again (section 2).** Each slot is a separate system: anything installed in the old image, Lynx included, is not in the new one. After a reflash, SSH may warn that the box's "host key has changed": clear the old key on your computer with `ssh-keygen -R <box address>` and log in again.
 
 2. **Tuner:** **Menu, Setup, Tuner Configuration, Tuner A**: configuration mode **Simple**, **Single**, then the satellite: choose the **Astra Ku band option at 19.2°E** (its exact name varies between images, such as "Astra 1KR/1L/1M/1N (19.2E)"), then save. The wizard on a new box may ask this too: give the same answer. Check this even after the wizard: on OpenATV 8 it can leave tuner A "not configured", and Lynx cannot tune anything until it is set (it says so). Nothing else needs changing for 23 cm; Lynx works out the frequencies.
 
