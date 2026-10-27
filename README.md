@@ -85,11 +85,13 @@ Lynx installs from the box itself, over the network. You need a way to type comm
 - **Mac or Linux:** Open Terminal and type `ssh root@<box address>`.
 - **Windows 10 or 11:** Open PowerShell and type the same.
 
-The box's address is under **Menu, Setup, System, Network**. OpenATV's root login has no password; answer `yes` if asked whether to trust the box the first time.
+The box's address is under **Menu, Setup, System, Network**. OpenATV's root login has no password; answer `yes` if asked whether to trust the box the first time. You are on the box when the prompt changes to something like `root@zgemmah11s:~#`.
 
-Then, on the box:
+Then type these on the box, **one at a time**, waiting for the prompt to come back after each (pasted together with the login line, they are lost while it connects):
 ```
 opkg update && opkg upgrade
+```
+```
 wget -qO- https://raw.githubusercontent.com/G8YTZ/Lynx-Enigma2/main/tools/install.sh | sh
 ```
 The first line brings the box's own software up to date: **only on OpenATV 8 or later.** On an older image (the 2021 one a box may come with) it can fail part-way and leave the box worse off; flash OpenATV 8 first (section 1). The second installs the stream players, downloads the latest Lynx from GitHub, installs it and restarts the box's GUI. Then open **Plugins, UK ATV Repeaters**. The first time, Lynx opens its settings by itself:
