@@ -34,16 +34,33 @@ Tested on a Zgemma H11S. Other Enigma2 boxes with a DVB-S2 tuner should work the
 
    On a multiboot box such as the H11S, put OpenATV 8 in a spare slot, so the old image stays as it was: **Menu, Setup, Software Management, Flash online**, the newest OpenATV 8 build for your box, then a free slot.
 
-   Flash online needs a USB stick or disc to download to; without one it says "could not find suitable media". Then flash from a PC over SSH instead. First find the newest OpenATV 8 image for your box: open [images.mynonpublic.com/openatv](https://images.mynonpublic.com/openatv/) in a browser, choose your box (zgemmah11s for the H11S), then the newest **8.x** `_multi.zip`, and copy its link. On 26 October 2026 that was [openatv-8.0.1-zgemmah11s-20261026_multi.zip](https://images.mynonpublic.com/openatv/8.0/zgemmah11s/openatv-8.0.1-zgemmah11s-20261026_multi.zip). Or let a Mac or Linux terminal find it:
+   Flash online needs a USB stick or disc to download to; without one it says "could not find suitable media". Then flash it from a computer instead, in four steps. The commands are the same on a Mac and on Windows.
+
+   **a. Open a command window.**
+   - **Mac:** Open **Terminal** (Applications, Utilities).
+   - **Windows 10 or 11:** Open **PowerShell** (type PowerShell in the Start menu).
+
+   **b. Find three things:**
+   - **The box's address:** On the box, **Menu, Setup, System, Network** (such as 192.168.0.80).
+   - **A free slot:** On the box, **Menu, Standby / Restart, Multiboot Image Selector** lists what is in each slot. Pick an empty one (2, 3 or 4). Never the slot with the image the box came with: that is your way back.
+   - **The image's address:** In a browser, open [images.mynonpublic.com/openatv](https://images.mynonpublic.com/openatv/), choose your box (zgemmah11s for the H11S), then the newest **8.x** `_multi.zip`, and copy its link. On 26 October 2026 that was `https://images.mynonpublic.com/openatv/8.0/zgemmah11s/openatv-8.0.1-zgemmah11s-20261026_multi.zip`.
+
+   **c. Let the box download the image.** Type this as one line, with your box's address and the image's address in place of the examples (the box fetches the image itself; nothing is saved on your computer):
+   ```
+   ssh root@192.168.0.80 "mkdir -p /home/root/flash && cd /home/root/flash && wget -O image.zip https://images.mynonpublic.com/openatv/8.0/zgemmah11s/openatv-8.0.1-zgemmah11s-20261026_multi.zip && unzip -o image.zip && ls h11"
+   ```
+   The first time, answer `yes` to trusting the box. After a minute or two it should end with `rootfs.tar.bz2` and `uImage`. If it doesn't, stop here and check the addresses.
+
+   **d. Flash it,** with your box's address and the free slot after `-m` (here slot 2):
+   ```
+   ssh root@192.168.0.80 "nohup /usr/bin/ofgwrite -r -k -m2 /home/root/flash/h11 > /home/root/flash/ofgwrite.log 2>&1 &"
+   ```
+   The box's screen shows the progress. When it says it has flashed, choose that slot in the **Multiboot Image Selector** (Menu, Standby / Restart) and work through OpenATV 8's set-up wizard. No channel scan is needed.
+
+   On a Mac or Linux, this finds the newest image's address for you, instead of the browser:
    ```
    curl -sL https://images.mynonpublic.com/openatv/json/zgemmah11s | tr ',' '\n' | grep -o 'https[^"]*openatv-8[^"]*_multi.zip' | sed 's#\\##g' | sort | tail -1
    ```
-   Then, with that address:
-   ```
-   ssh root@<box> 'mkdir -p /home/root/flash && cd /home/root/flash && wget -O image.zip <multi.zip address> && unzip -o image.zip'
-   ssh root@<box> 'nohup /usr/bin/ofgwrite -r -k -m2 /home/root/flash/h11 > /home/root/flash/ofgwrite.log 2>&1 &'
-   ```
-   `-m2` writes slot 2 and leaves the others alone. When the screen says it has flashed, choose slot 2 in the **Multiboot Image Selector** (Menu, Standby / Restart) and work through the setup wizard. No channel scan is needed.
 
 2. **Tuner:** **Menu, Setup, Tuner Configuration, Tuner A**: configuration mode **Simple**, **Single**, satellite **Astra 1KR/1L/1M/1N (19.2E)**, then save. Check this even after the wizard: on OpenATV 8 it can leave tuner A "not configured", and Lynx cannot tune anything until it is set (it says so). Nothing else needs changing for 23 cm; Lynx works out the frequencies.
 
