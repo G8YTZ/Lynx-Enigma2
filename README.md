@@ -127,6 +127,8 @@ The first time, Lynx opens its settings by itself; after that they are on **blue
 
 Then press **green** to save. The list is sorted from your locator, and Lynx is ready to watch.
 
+**Before you watch on air, check the tuner once more.** Lynx's settings do not include it: it is the box's own setting. **Menu, Setup, Tuner Configuration, Tuner A**: **Simple**, **Single**, and the **Astra Ku band option at 19.2°E**, then save (see [step 4](#step-4-check-the-tuner)). If it is not set, Lynx says "No tuner set up" instead of tuning.
+
 **From a PC instead** (for working on Lynx itself): clone this repository, or download it with GitHub's **Code, Download ZIP**, and from its folder run `tools/deploy.sh <box address>`. That copies your copy of Lynx to the box and restarts the GUI.
 
 ## 3. Updating
