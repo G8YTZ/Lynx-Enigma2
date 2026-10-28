@@ -66,7 +66,7 @@ def Plugins(**kwargs):
     return [
         PluginDescriptor(where=PluginDescriptor.WHERE_SESSIONSTART, fnc=sessionstart),
         PluginDescriptor(
-            name=_("UK ATV Repeaters"),
+            name=_("Lynx: UK ATV Repeaters"),
             description=_("Lynx: watch UK amateur TV repeaters"),
             where=[PluginDescriptor.WHERE_PLUGINMENU, PluginDescriptor.WHERE_EXTENSIONSMENU],
             fnc=main),

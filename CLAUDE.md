@@ -31,6 +31,9 @@ British English, metric. No long dashes (use a colon, semicolon, comma, brackets
 
 - **Colin G4KLB:** Zgemma H11S, installed from the public repo (21 Oct 2026), delighted.
 - **Martin:** Zgemma H9S SE (21 Oct 2026): the list and BATC streams work, BATC Live bouquet seen in OpenWebif. On air not reported; his tuner may not be an RS6060, in which case the MODCOD, level and eye stay blank.
+- **Martin Perrett (Facebook, 28 Oct 2026):** H9S SE "works just like the 11se"; the hard part was finding Lynx in the plugin list, then setting Open Lynx at start-up. So the plugin is now listed as **"Lynx: UK ATV Repeaters"** (was "UK ATV Repeaters": people look for "Lynx"), and the README says where to find it.
+- **Ian (Facebook, 28 Oct 2026):** works on an **Octagon SF8008 4K Combo**. Tuner chip not known: ask whether the bar shows MODCOD, dBm and the eye.
+- **Andy Mace (Facebook, 28 Oct 2026):** "got it working"; box not stated (probably also an SF8008).
 
 ## The test box
 

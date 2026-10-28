@@ -8,7 +8,8 @@ Part of the Lynx family, with the [Lynx DATV Receiver](https://github.com/G8YTZ/
 
 **Tested on:**
 - **Zgemma H11S,** OpenATV 8.0.1: Everything, on air and streams (two boxes, October 2026).
-- **Zgemma H9S SE:** The repeater list and BATC streams, including the BATC Live channel list (October 2026). On air not yet reported.
+- **Zgemma H9S SE:** Works just like the H11S (October 2026).
+- **Octagon SF8008 4K Combo:** Works (October 2026).
 
 Tried it on another box? Please say how it went on the issues page.
 
@@ -26,7 +27,7 @@ LNB power is on by default, to feed the small inline preamplifiers that run from
 
 ## 1. Setting up the box
 
-Tested on a Zgemma H11S. Other Enigma2 boxes with a DVB-S2 tuner should work the same way. Lynx needs **OpenATV 8 or later** (7.x is end of life; the older images a box may come with miss the picture on many BATC streams). Already on OpenATV 8? Go straight to step 3.
+Tested on the Zgemma H11S and H9S SE and the Octagon SF8008. Other Enigma2 boxes with a DVB-S2 tuner should work the same way. Lynx needs **OpenATV 8 or later** (7.x is end of life; the older images a box may come with miss the picture on many BATC streams). Already on OpenATV 8? Go straight to step 3.
 
 ### Step 1: First power-up (the image the box came with)
 
@@ -100,7 +101,7 @@ wget -qO- https://raw.githubusercontent.com/G8YTZ/Lynx-Enigma2/main/tools/instal
 ```
 The first brings OpenATV 8 up to date ("No packages installed or removed" means it already was). The second installs the stream players (nothing for you to set up), downloads the latest Lynx, installs it and restarts the box's GUI. It ends with "Lynx: installed; restarting the GUI".
 
-**Open Lynx:** On the remote, **Menu**, then the plugin browser (**Plugins**), then **UK ATV Repeaters**.
+**Open Lynx:** On the remote, **Menu**, then the plugin browser (**Plugins**), then **Lynx: UK ATV Repeaters** (it may be further down the list; scroll to find it). It is also under the blue button's **Extensions** list. Once **Open Lynx at start-up** is on and saved (below), you won't need to find it again.
 
 ### Lynx's settings
 

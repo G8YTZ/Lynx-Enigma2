@@ -28,5 +28,5 @@ if [ -n "$RESTART" ]; then
     # Stop the GUI, clear any copies left by tools/foreground.sh, start it
     # again. Two copies at once fight over screen and tuner and hang the box.
     ssh root@"$BOX" "/sbin/init 4; sleep 2; killall -9 enigma2 2>/dev/null; sleep 1; /sbin/init 3"
-    echo "GUI restarting; the plugin is under Plugins as UK ATV Repeaters."
+    echo "GUI restarting; the plugin is under Plugins as "Lynx: UK ATV Repeaters"."
 fi
