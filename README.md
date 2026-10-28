@@ -7,9 +7,13 @@ Part of the Lynx family, with the [Lynx DATV Receiver](https://github.com/G8YTZ/
 **Status: Working, in testing.** Proven on a Zgemma H11S with OpenATV 8.0.1: 23 cm DVB-S2 straight into the box's satellite tuner from 1000 kS/s up, 4K HEVC on air, BATC streams, channel hopping between the two.
 
 **Tested on:**
-- **Zgemma H11S,** OpenATV 8.0.1: Everything, on air and streams (two boxes, October 2026).
-- **Zgemma H9S SE:** Works just like the H11S (October 2026).
+- **Zgemma H11S,** OpenATV 8.0.1: Everything, on air and streams (several boxes, October 2026).
+
+**Reported working by the community:**
+- **Zgemma H9S SE:** "Works just like the H11S" (October 2026).
 - **Octagon SF8008 4K Combo:** Works (October 2026).
+
+Thank you to everyone who has tried Lynx and said how it went.
 
 Tried it on another box? Please say how it went on the issues page.
 
