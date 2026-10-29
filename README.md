@@ -184,6 +184,8 @@ rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters; /sbin/init 4; s
 
 **BATC Live:** Lynx also keeps a **BATC Live** channel list, refreshed every hour, so live streams can be watched from the box's ordinary channel list.
 
+**Surround sound:** Repeaters and streams can carry 5.1 surround as Dolby Digital (AC-3); GB3OO's tests in October 2026 played in full 5.1 through Lynx. For surround to reach your TV or AV amplifier, the box must pass it on rather than mix it down: in the box's audio settings, set both **AC3 downmix** and **AAC downmix** to **No** (or **Passthrough**, depending on the image). With either set to downmix, a 5.1 programme plays in stereo. Stereo programmes are not affected.
+
 ## 5. Troubleshooting
 
 - **Lynx does not open when the box starts:** Switch on **Open Lynx at start-up** in Lynx's settings (**blue**).
@@ -192,6 +194,7 @@ rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters; /sbin/init 4; s
 - **"No tuner set up":** Tuner A is not configured; see step 4 of setting up.
 - **"No signal" on a repeater you can receive:** Its listed symbol rate may be wrong. Use **MENU, Watch ... trying every symbol rate**.
 - **Sound but no picture on a stream:** Press **yellow** on the bar to try the other player, or select the stream again: these players can miss the picture when they join a stream between keyframes. A stream whose keyframes are far apart (GB3NQ, October 2026) can stay sound-only; that is for its keeper to fix.
+- **Stereo only from a 5.1 programme:** The box is mixing it down. Set **AC3 downmix** and **AAC downmix** to **No** in its audio settings (see [Surround sound](#4-using-lynx)), and check that the TV or amplifier is set to receive surround over HDMI or optical.
 - **Lynx's log:** On the box, `cat /tmp/lynx.log` (cleared at each restart). Include it when reporting a problem.
 
 ## Help and feedback
