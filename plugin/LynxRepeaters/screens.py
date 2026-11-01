@@ -212,7 +212,7 @@ class PPMMeter(object):
         from .ppm import command
         try:
             with open(self.ERRORS, "w") as errors:
-                self.proc = subprocess.Popen(command(url), stdout=subprocess.PIPE, stderr=errors,
+                self.proc = subprocess.Popen(command(url, _discard_format()), stdout=subprocess.PIPE, stderr=errors,
                                              preexec_fn=os.setsid)
         except (OSError, ValueError) as e:
             log("PPM: could not start ffmpeg: %s" % e)
@@ -258,6 +258,25 @@ class PPMMeter(object):
     def positions(self):
         with self.lock:
             return self.reader.positions()
+
+
+_DISCARD = []
+
+
+def _discard_format():
+    """The output format the PPM's ffmpeg throws its sound away in: asked
+    of the box's ffmpeg once, as builds differ."""
+    if not _DISCARD:
+        from .ppm import discard, muxers
+        import subprocess
+        try:
+            text = subprocess.Popen(["ffmpeg", "-hide_banner", "-muxers"], stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT).communicate()[0].decode("latin-1")
+        except (OSError, ValueError):
+            text = ""
+        _DISCARD.append(discard(muxers(text)))
+        log("PPM: ffmpeg discards the sound as %s" % _DISCARD[0])
+    return _DISCARD[0]
 
 
 def stop_stray_meters():

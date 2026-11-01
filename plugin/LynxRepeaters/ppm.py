@@ -86,14 +86,39 @@ def frame_angle(n):
     return FIRST_ANGLE + n
 
 
-def command(url):
+# Where the decoded sound goes once metered: nowhere. OpenATV's ffmpeg has
+# no "null" output format (1 Nov 2026: "Requested output format 'null' is
+# not known"), so raw PCM to /dev/null is the usual choice; the first of
+# these that the box's ffmpeg has is used.
+DISCARD = ("null", "s16le", "wav", "au")
+
+
+def muxers(text):
+    """The output formats ffmpeg -muxers lists, from its text."""
+    out = set()
+    for line in text.splitlines():
+        m = re.match(r"\s*[D ]?E[ d]?\s+([A-Za-z0-9_,]+)\s", line)
+        if m:
+            out.update(m.group(1).split(","))
+    return out
+
+
+def discard(available):
+    for name in DISCARD:
+        if name in available:
+            return name
+    return "s16le"
+
+
+def command(url, muxer="null"):
     """ffmpeg, reading one programme's sound and printing per-block peaks."""
     af = ("aformat=channel_layouts=stereo,asetnsamples=n=%d:p=0,"
           "astats=metadata=1:reset=1:measure_perchannel=Peak_level:measure_overall=none,"
           "ametadata=mode=print:file=-" % BLOCK_SAMPLES)
     return ["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-fflags", "nobuffer",
             "-i", url, "-vn", "-sn", "-dn", "-map", "0:a:0", "-af", af,
-            "-metadata", "comment=" + MARKER, "-f", "null", "-"]
+            "-metadata", "comment=" + MARKER] + (
+        ["-f", "null", "-"] if muxer == "null" else ["-c:a", "pcm_s16le", "-f", muxer, "-y", "/dev/null"])
 
 
 _PTS = re.compile(r"pts_time:\s*([-0-9.]+)")

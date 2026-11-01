@@ -580,6 +580,20 @@ def test_ppm():
     assert abs(left - 4) < 0.05 and right < 0
     cmd = ppm.command("http://127.0.0.1:8001/1:0:1:1:1:FF01:C0AB2E:0:0:0:")
     assert cmd[0] == "ffmpeg" and "comment=" + ppm.MARKER in cmd and "-vn" in cmd
+    listing = """File formats:
+ D. = Demuxing supported
+ .E = Muxing supported
+ ---
+  E adts            ADTS AAC (Advanced Audio Coding)
+  E mpegts          MPEG-TS (MPEG-2 Transport Stream)
+  E s16le           PCM signed 16-bit little-endian
+  E wav             WAV / WAVE (Waveform Audio)
+"""
+    have = ppm.muxers(listing)
+    assert "null" not in have and ppm.discard(have) == "s16le"    # OpenATV 8.0.1's ffmpeg, 1 Nov 2026
+    assert ppm.discard(ppm.muxers("  E null            raw null video\n")) == "null"
+    cmd = ppm.command("http://x", "s16le")
+    assert cmd[-5:] == ["pcm_s16le", "-f", "s16le", "-y", "/dev/null"]
 
 
 if __name__ == "__main__":
