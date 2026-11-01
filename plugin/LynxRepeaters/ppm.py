@@ -129,10 +129,17 @@ def discard(available, codecs=None):
 
 def command(url, output=("null", None)):
     """ffmpeg, reading one programme's sound and printing per-block peaks."""
-    af = ("aformat=channel_layouts=stereo,asetnsamples=n=%d:p=0,"
+    # No forcing to stereo: that mixed a mono programme into both channels
+    # 3 dB down. Mono reads on channel 1 and the reader shows it on both
+    # needles; 5.1 meters its front pair, which ffmpeg puts first.
+    af = ("asetnsamples=n=%d:p=0,"
           "astats=metadata=1:reset=1:measure_perchannel=Peak_level:measure_overall=none,"
           "ametadata=mode=print:file=-" % BLOCK_SAMPLES)
+    # A short look at the stream before starting (the default can take
+    # seconds), and no dynamic range control on AC-3, which would make
+    # loud passages read low.
     return ["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-fflags", "nobuffer",
+            "-analyzeduration", "700000", "-probesize", "400000", "-drc_scale", "0",
             "-i", url, "-vn", "-sn", "-dn", "-map", "0:a:0", "-af", af,
             "-metadata", "comment=" + MARKER] + (
         ["-f", "null", "-"] if output[0] == "null" else ["-c:a", output[1], "-f", output[0], "-y", "/dev/null"])
@@ -149,10 +156,12 @@ class Reader(object):
         self.meters = [Ballistics(), Ballistics()]
         self.last_pts = None
         self.dt = BLOCK_SAMPLES / 48000.0
+        self.block = []                  # channels heard in the block being read
 
     def line(self, text):
         m = _PTS.search(text)
         if m:
+            self._end_block()
             pts = float(m.group(1))
             if self.last_pts is not None and 0 < pts - self.last_pts < 0.1:
                 self.dt = pts - self.last_pts
@@ -162,7 +171,15 @@ class Reader(object):
         if m:
             db = m.group(2)
             peak = 0.0 if db.endswith("inf") and db.startswith("-") else min(1.0, 10 ** (float(db) / 20))
-            self.meters[int(m.group(1)) - 1].update(peak, self.dt)
+            ch = int(m.group(1)) - 1
+            self.meters[ch].update(peak, self.dt)
+            self.block.append((ch, peak))
+
+    def _end_block(self):
+        """A mono programme has only channel 1: show it on both needles."""
+        if len(self.block) == 1 and self.block[0][0] == 0:
+            self.meters[1].update(self.block[0][1], self.dt)
+        self.block = []
 
     def positions(self):
         return self.meters[0].position, self.meters[1].position
