@@ -177,11 +177,13 @@ class PPMMeter(object):
     def __init__(self):
         from .ppm import Reader
         self.reader = Reader()
-        self.proc, self.url, self.thread, self.failed_at = None, None, None, None
+        self.proc, self.url, self.thread, self.failed_at, self.tries = None, None, None, None, 0
         import threading
         self.lock = threading.Lock()
 
     RETRY_S = 30                         # after ffmpeg gives up (no sound track, say)
+    MAX_TRIES = 2                        # then leave that programme alone: each start can
+                                         # upset the sound for a moment (1 Nov 2026)
     ERRORS = "/tmp/lynx-ppm.log"
 
     def start(self, url):
@@ -189,6 +191,13 @@ class PPMMeter(object):
             return
         if url == self.url and self.proc and self.proc.poll() is not None:
             # It ended by itself: say why once, then wait before trying again.
+            if self.tries >= self.MAX_TRIES:
+                if self.failed_at:
+                    log("PPM: ffmpeg stopped (%s); not trying again on this programme" % self._last_error())
+                    self.failed_at = None
+                    with self.lock:
+                        self.reader.rest()
+                return
             if not self.failed_at:
                 self.failed_at = time.time()
                 log("PPM: ffmpeg stopped (%s); trying again in %d s" % (self._last_error(), self.RETRY_S))
@@ -196,8 +205,9 @@ class PPMMeter(object):
                     self.reader.rest()
             if time.time() - self.failed_at < self.RETRY_S:
                 return
+        tries = self.tries + 1 if url == self.url else 1
         self.stop()
-        self.failed_at = None
+        self.failed_at, self.tries = None, tries
         import subprocess
         from .ppm import command
         try:
