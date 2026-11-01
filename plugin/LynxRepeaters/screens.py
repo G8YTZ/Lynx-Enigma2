@@ -890,12 +890,12 @@ def _bar_skin(with_ppm):
 <screen name="LynxBar" position="60,930" size="1800,130" backgroundColor="#00141414" flags="wfNoBorder">
   <eLabel position="0,0" size="12,130" backgroundColor="#00d0021b"/>
 """ + ppm + """
-  <widget name="call" position="%d,8" size="560,70" font="Regular;54" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
-  <widget name="where" position="%d,8" size="%d,70" font="Regular;36" valign="center" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
+  <widget name="call" position="%d,8" size="420,70" font="Regular;54" noWrap="1" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
+  <widget name="where" position="%d,8" size="%d,70" font="Regular;36" valign="center" noWrap="1" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
   <widget name="signal" position="1140,8" size="510,70" font="Regular;36" halign="right" valign="center" foregroundColor="#00ffd200" backgroundColor="#00141414"/>
   <widget name="tech" position="%d,78" size="%d,44" font="Regular;28" valign="center" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
   <widget name="hint" position="1240,78" size="410,44" font="Regular;20" halign="right" valign="center" foregroundColor="#00909090" backgroundColor="#00141414"/>
-""" % (x, x + 580, 1140 - (x + 580), x, 1240 - x) + (
+""" % (x, x + 430, 1140 - (x + 430), x, 1240 - x) + (
         '<widget name="eye" position="1670,10" size="110,110" alphatest="blend" pixmaps="%s"/>' % ",".join(EYE_PIXMAPS)
         if EYE_PIXMAPS else "") + """
 </screen>""")
