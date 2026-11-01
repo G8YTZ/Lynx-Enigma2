@@ -27,13 +27,15 @@ from __future__ import absolute_import, division, print_function
 
 import math
 import re
+import time
 
 PPM4_DBFS = -18.0
 DB_PER_DIVISION = 4.0
 ATTACK_S = 0.0017
 DECAY_S = 0.650
 SILENCE = 1e-5
-BLOCK_SAMPLES = 96                        # 2 ms at 48 kHz
+BLOCK_SAMPLES = 192                       # 4 ms at 48 kHz: still inside a PPM's 10 ms
+                                          # integration, half the lines of 2 ms
 
 # Needle pictures: one per whole degree of swing, -43 to +43. The scale's
 # 1 and 7 sit at -40 and +40; below 1 and above 7 the needle moves 3
@@ -134,11 +136,12 @@ def command(url, output=("null", None)):
     # needles; 5.1 meters its front pair, which ffmpeg puts first.
     af = ("asetnsamples=n=%d:p=0,"
           "astats=metadata=1:reset=1:measure_perchannel=Peak_level:measure_overall=none,"
-          "ametadata=mode=print:file=-" % BLOCK_SAMPLES)
+          "ametadata=mode=print:file=-:direct=1" % BLOCK_SAMPLES)   # direct: no output buffering
     # A short look at the stream before starting (the default can take
     # seconds), and no dynamic range control on AC-3, which would make
     # loud passages read low.
     return ["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-fflags", "nobuffer",
+            "-flags", "low_delay",
             "-analyzeduration", "700000", "-probesize", "400000", "-drc_scale", "0",
             "-i", url, "-vn", "-sn", "-dn", "-map", "0:a:0", "-af", af,
             "-metadata", "comment=" + MARKER] + (
@@ -157,12 +160,20 @@ class Reader(object):
         self.last_pts = None
         self.dt = BLOCK_SAMPLES / 48000.0
         self.block = []                  # channels heard in the block being read
+        self.first = None                # (wall clock, pts) when the first block arrived
+        self.lag = 0.0                   # how far the meter has fallen behind, seconds
 
     def line(self, text):
         m = _PTS.search(text)
         if m:
             self._end_block()
             pts = float(m.group(1))
+            now = time.time()
+            if self.first is None:
+                self.first = (now, pts)
+            else:
+                # Sound arriving slower than it plays means the meter is falling behind.
+                self.lag = (now - self.first[0]) - (pts - self.first[1])
             if self.last_pts is not None and 0 < pts - self.last_pts < 0.1:
                 self.dt = pts - self.last_pts
             self.last_pts = pts
@@ -187,3 +198,4 @@ class Reader(object):
     def rest(self):
         for m in self.meters:
             m.level = SILENCE
+        self.first, self.lag, self.last_pts = None, 0.0, None

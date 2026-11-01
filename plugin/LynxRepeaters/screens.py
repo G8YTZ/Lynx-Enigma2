@@ -226,11 +226,15 @@ class PPMMeter(object):
         self.thread.start()
 
     def _read(self, proc):
+        told = time.time()
         for raw in iter(proc.stdout.readline, b""):
             if proc is not self.proc:
                 break
             with self.lock:
                 self.reader.line(raw.decode("latin-1"))
+            if time.time() - told > 10:
+                told = time.time()
+                log("PPM: %.1f s behind the sound's own clock" % self.reader.lag)
 
     def _last_error(self):
         try:
