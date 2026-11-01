@@ -82,6 +82,8 @@ cfg.manual_sr = ConfigSelection(default="1500", choices=SR_CHOICES)
 # Settings open by themselves the first time Lynx opens (G4FRE and others
 # had not found them, 23 Oct 2026).
 cfg.welcomed = ConfigYesNo(default=False)
+# The PPM audio meter at the left of the Lynx bar, as Lynx Rx and Apple TV.
+cfg.ppm = ConfigYesNo(default=True)
 
 
 def video_signs(session):
@@ -144,6 +146,91 @@ def _eye_pixmaps():
 
 
 EYE_PIXMAPS = _eye_pixmaps()
+
+_PPM_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ppm")
+
+
+def _ppm_pixmaps():
+    """The PPM's pictures for this output: housing, green needles, red
+    needles, screw. None if any are missing."""
+    if not MultiPixmap:
+        return None
+    from .ppm import FRAMES as PPM_FRAMES
+    folder = _PPM_DIR if _factor() > 0.8 else os.path.join(_PPM_DIR, "hd")
+    pics = {"housing": os.path.join(folder, "housing.png"), "screw": os.path.join(folder, "screw.png"),
+            "green": [os.path.join(folder, "green_%02d.png" % n) for n in range(PPM_FRAMES)],
+            "red": [os.path.join(folder, "red_%02d.png" % n) for n in range(PPM_FRAMES)]}
+    files = [pics["housing"], pics["screw"]] + pics["green"] + pics["red"]
+    return pics if all(os.path.exists(f) for f in files) else None
+
+
+PPM_PIXMAPS = _ppm_pixmaps()
+PPM_MS = 50                            # the needles move 20 times a second
+
+
+class PPMMeter(object):
+    """ffmpeg reading the box's own stream of what is playing (port 8001),
+    decoding the sound only; a thread turns its peaks into needle
+    positions. One at a time; stopped with its whole process group."""
+
+    def __init__(self):
+        from .ppm import Reader
+        self.reader = Reader()
+        self.proc, self.url, self.thread = None, None, None
+        import threading
+        self.lock = threading.Lock()
+
+    def start(self, url):
+        if url == self.url and self.proc and self.proc.poll() is None:
+            return
+        self.stop()
+        import subprocess
+        from .ppm import command
+        try:
+            self.proc = subprocess.Popen(command(url), stdout=subprocess.PIPE, stderr=open(os.devnull, "w"),
+                                         preexec_fn=os.setsid)
+        except (OSError, ValueError) as e:
+            log("PPM: could not start ffmpeg: %s" % e)
+            self.proc = None
+            return
+        self.url = url
+        log("PPM: metering %s" % url)
+        import threading
+        self.thread = threading.Thread(target=self._read, args=(self.proc,))
+        self.thread.daemon = True
+        self.thread.start()
+
+    def _read(self, proc):
+        for raw in iter(proc.stdout.readline, b""):
+            if proc is not self.proc:
+                break
+            with self.lock:
+                self.reader.line(raw.decode("latin-1"))
+
+    def stop(self):
+        proc, self.proc, self.url = self.proc, None, None
+        if proc and proc.poll() is None:
+            import signal as sig
+            try:
+                os.killpg(proc.pid, sig.SIGTERM)
+            except OSError:
+                pass
+            try:
+                proc.wait()
+            except OSError:
+                pass
+        with self.lock:
+            self.reader.rest()
+
+    def positions(self):
+        with self.lock:
+            return self.reader.positions()
+
+
+def stop_stray_meters():
+    """An earlier Lynx's PPM ffmpeg, left behind by a GUI crash."""
+    from .ppm import MARKER
+    os.system("pkill -f 'comment=%s' >/dev/null 2>&1" % MARKER)
 LEVEL_FLOOR_DBM = -77                  # where the H11S's level reading stops falling
 EYE_MS = 250                           # four looks a second: quick enough to point with
 EYE_EASE = 0.35                        # how far it moves towards a new reading each look
@@ -438,6 +525,11 @@ class RepeaterList(Screen):
             self.session.open(MessageBox, _("The box is recording. Stop the recording first."), MessageBox.TYPE_INFO)
             return
         self.stream_timer.stop()
+        # The PPM's ffmpeg holds a stream of the tuner on the box's port
+        # 8001: let it go first, or the box has no tuner free to scan with.
+        if self.bar and self.bar.meter:
+            self.bar.meter.stop()
+        stop_stray_meters()
         self.watching = None
         self.tuning = e
         self["key_red"].setText(_("Stop"))
@@ -755,20 +847,46 @@ class RepeaterList(Screen):
         self._touched()
 
 
-class LynxBar(Screen):
-    skin = _scale("""
+def _bar_skin(with_ppm):
+    """The Lynx bar, with the PPM at its left end when it is shown (the
+    text moves along to make room) and the magic eye at the right."""
+    x = 150 if with_ppm else 40
+    ppm = ""
+    if with_ppm:
+        ppm = ('<ePixmap position="24,10" size="110,110" alphatest="blend" pixmap="%s"/>'
+               '<widget name="ppm_green" position="24,10" size="110,110" alphatest="blend" pixmaps="%s"/>'
+               '<widget name="ppm_red" position="24,10" size="110,110" alphatest="blend" pixmaps="%s"/>'
+               '<ePixmap position="24,10" size="110,110" alphatest="blend" pixmap="%s"/>' % (
+                   PPM_PIXMAPS["housing"], ",".join(PPM_PIXMAPS["green"]), ",".join(PPM_PIXMAPS["red"]),
+                   PPM_PIXMAPS["screw"]))
+    return _scale("""
 <screen name="LynxBar" position="60,930" size="1800,130" backgroundColor="#00141414" flags="wfNoBorder">
   <eLabel position="0,0" size="12,130" backgroundColor="#00d0021b"/>
-  <widget name="call" position="40,8" size="560,70" font="Regular;54" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
-  <widget name="where" position="620,8" size="520,70" font="Regular;36" valign="center" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
+""" + ppm + """
+  <widget name="call" position="%d,8" size="560,70" font="Regular;54" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
+  <widget name="where" position="%d,8" size="%d,70" font="Regular;36" valign="center" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
   <widget name="signal" position="1140,8" size="510,70" font="Regular;36" halign="right" valign="center" foregroundColor="#00ffd200" backgroundColor="#00141414"/>
-  <widget name="tech" position="40,78" size="1200,44" font="Regular;28" valign="center" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
+  <widget name="tech" position="%d,78" size="%d,44" font="Regular;28" valign="center" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
   <widget name="hint" position="1240,78" size="410,44" font="Regular;20" halign="right" valign="center" foregroundColor="#00909090" backgroundColor="#00141414"/>
-""" + ('<widget name="eye" position="1670,10" size="110,110" alphatest="blend" pixmaps="%s"/>' % ",".join(EYE_PIXMAPS)
-       if EYE_PIXMAPS else "") + """
+""" % (x, x + 580, 1140 - (x + 580), x, 1240 - x) + (
+        '<widget name="eye" position="1670,10" size="110,110" alphatest="blend" pixmaps="%s"/>' % ",".join(EYE_PIXMAPS)
+        if EYE_PIXMAPS else "") + """
 </screen>""")
 
+
+BAR_SKIN = _bar_skin(False)
+BAR_SKIN_PPM = _bar_skin(True) if PPM_PIXMAPS else BAR_SKIN
+
+
+class LynxBar(Screen):
+    skin = BAR_SKIN
+
     def __init__(self, session, entry, owner=None):
+        # The PPM's widgets only when it is shown: its own skin name, so the
+        # two layouts are never mixed up.
+        self.with_ppm = bool(cfg.ppm.value and PPM_PIXMAPS)
+        if self.with_ppm:
+            self.skin, self.skinName = BAR_SKIN_PPM, "LynxBarPPM"
         Screen.__init__(self, session)
         self.entry, self.owner = entry, owner
         self.notice_text = None
@@ -805,6 +923,15 @@ class LynxBar(Screen):
             self["eye"] = MultiPixmap()
             self.eye_timer, self._et = _timer(self._eye)
             self.onClose.append(self.eye_timer.stop)
+        # The PPM: needles at rest until the sound is metered.
+        self.meter, self.ppm_shown = None, (None, None)
+        if self.with_ppm:
+            self["ppm_green"] = MultiPixmap()
+            self["ppm_red"] = MultiPixmap()
+            self.meter = PPMMeter()
+            self.ppm_timer, self._pt = _timer(self._ppm)
+            self.onClose.append(self.ppm_timer.stop)
+            self.onClose.append(self.meter.stop)
 
     def _zap(self, by):
         if self.owner:
@@ -836,6 +963,8 @@ class LynxBar(Screen):
     def _start(self):
         self.update()
         self.timer.start(1000, False)
+        if self.meter:
+            self.ppm_timer.start(PPM_MS, False)
         if EYE_PIXMAPS:
             self.eye_timer.start(EYE_MS, False)
 
@@ -862,9 +991,41 @@ class LynxBar(Screen):
             n, db, self._margin(db), dbm, self.modcod.get("modulation"), self.modcod.get("fec"), target))
         self["eye"].setPixmapNum(EYE_FRAMES if n == "off" else n)
 
+    def _ppm_source(self):
+        """What the PPM should meter: the box's own stream of the on-air
+        programme playing, or nothing (streams: not yet, it would mean a
+        second connection to BATC)."""
+        if self.entry.get("via_stream") or self.entry.get("pending") or self.notice_text:
+            return None
+        try:
+            ref = self.session.nav.getCurrentlyPlayingServiceReference()
+            ref = ref and ref.toString()
+        except Exception:
+            return None
+        if not ref or not ref.startswith("1:"):
+            return None
+        return "http://127.0.0.1:8001/" + ref
+
+    def _ppm(self):
+        if not self.visible:
+            return
+        from .ppm import frame as ppm_frame
+        left, right = self.meter.positions()
+        shown = (ppm_frame(left), ppm_frame(right))
+        if shown != self.ppm_shown:
+            self.ppm_shown = shown
+            self["ppm_red"].setPixmapNum(shown[0])
+            self["ppm_green"].setPixmapNum(shown[1])
+
     def update(self):
         # Live values every second: what was actually locked and decoded,
         # never the list's idea of FEC or codec.
+        if self.meter:
+            url = self._ppm_source()
+            if url:
+                self.meter.start(url)
+            else:
+                self.meter.stop()
         prog = self.owner.programme() if self.owner and not self.entry.get("pending") else None
         if prog:
             self["hint"].setText(_("< > programme %d/%d   CH+/- next   EXIT list") % prog)
@@ -937,6 +1098,7 @@ class LynxSettings(ConfigListScreen, Screen):
             getConfigListEntry(_("Every BATC stream in the list, not only repeaters"), cfg.all_streams),
             getConfigListEntry(_("Player for streams"), cfg.player),
             getConfigListEntry(_("Lynx updates at start-up"), cfg.update_check),
+            getConfigListEntry(_("PPM audio meter on the Lynx bar"), cfg.ppm),
         ]
         ConfigListScreen.__init__(self, items, session=session)
         if welcome:

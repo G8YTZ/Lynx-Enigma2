@@ -45,6 +45,7 @@ def sessionstart(reason, session=None, **kwargs):
     if reason != 0 or session is None:
         return
     from . import screens
+    screens.stop_stray_meters()     # a PPM ffmpeg left behind by a GUI crash
     if screens.cfg.supply.value == "off":
         from . import lnbpower
         lnbpower.apply(True)        # the box's own tuner set-up is already loaded

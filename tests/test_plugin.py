@@ -556,6 +556,32 @@ def test_lnb_power_off():
     assert not lnbpower.apply(True, NM2)                   # an image without 0 V
 
 
+def test_ppm():
+    from LynxRepeaters import ppm
+    m = ppm.Ballistics()
+    for _ in range(500):                                 # 1 s of tone at -18 dBFS, in 2 ms blocks
+        m.update(10 ** (-18 / 20.0), 0.002)
+    assert abs(m.position - 4) < 0.01                     # PPM 4 = -18 dBFS (EBU R68)
+    for _ in range(325):                                  # 650 ms of silence: one decay time constant
+        m.update(0, 0.002)
+    assert abs(m.dbfs - (-18 + 20 * __import__("math").log10(__import__("math").exp(-1)))) < 0.2
+    fast = ppm.Ballistics()
+    fast.update(1.0, 0.0017)                              # one attack time constant: 63 %
+    assert abs(fast.level - (1 - __import__("math").exp(-1))) < 0.01
+    assert ppm.angle(4) == 0 and ppm.angle(1) == -40 and ppm.angle(7) == 40
+    assert ppm.angle(0) == -43 and ppm.angle(9) == 43     # overshoot, as Lynx Rx
+    assert ppm.frame(-20) == 0 and ppm.frame(4) == 43 and ppm.frame(20) == ppm.FRAMES - 1
+    r = ppm.Reader()
+    for t in range(200):
+        r.line("frame:%d    pts:%d   pts_time:%.3f" % (t, t * 96, t * 0.002))
+        r.line("lavfi.astats.1.Peak_level=-18.000000")
+        r.line("lavfi.astats.2.Peak_level=-inf")
+    left, right = r.positions()
+    assert abs(left - 4) < 0.05 and right < 0
+    cmd = ppm.command("http://127.0.0.1:8001/1:0:1:1:1:FF01:C0AB2E:0:0:0:")
+    assert cmd[0] == "ffmpeg" and "comment=" + ppm.MARKER in cmd and "-vn" in cmd
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

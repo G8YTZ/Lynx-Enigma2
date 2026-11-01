@@ -123,6 +123,7 @@ The first time, Lynx opens its settings by itself; after that they are on **blue
 | **Every BATC stream in the list** | Adds every stream on the BATC streamer at the end of the list, members' and event streams too, offline ones greyed. | Your choice; **No** keeps the list to repeaters. |
 | **Player for streams** | Which player plays BATC streams. | **Automatic** (gstplayer, then exteplayer3 on yellow). |
 | **Lynx updates at start-up** | At each start, looks for a newer Lynx. | **Ask before installing**, or **Install by itself** on a box nobody watches. |
+| **PPM audio meter on the Lynx bar** | A BBC-style stereo peak programme meter at the left of the Lynx bar while watching on air: red needle left, green right; PPM 4 is -18 dBFS. | **Yes**, unless you want the bar's text further left. |
 
 **Entering your locator:**
 1. With **Your locator** highlighted, press **TEXT** for the on-screen keyboard (easiest), or type straight in with the number keys as on an old phone: press a key repeatedly to step through its letters (**5** for J, **6** three times for O).
@@ -170,6 +171,7 @@ rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters; /sbin/init 4; s
 - **A member's stream:** **MENU, Add a BATC stream by its name**: type the end of its address on the BATC streamer (for batc.org.uk/live/g4fre, that is g4fre). It goes at the top of the list as a preset, marked LIVE while it is streaming; OK watches it.
 
 **The Lynx bar,** while watching:
+- **The PPM:** At the left end of the bar, a BBC-style stereo peak programme meter, as on Lynx Rx: red needle for the left channel, green for the right, PPM 4 at -18 dBFS. On air for now; at rest on BATC streams.
 - **The magic eye:** Its dark wedge narrows as the signal gets stronger and the margin grows, and closes on a strong, clean signal. Wide open means you are near the edge; dark means no lock.
 - **Margin:** Beside the SNR, how many dB the signal is above what its modulation and FEC need to decode. Around +3 is a working signal, +10 or more plenty in hand, below +1 at the edge of breaking up.
 - **Level:** In dBm on the line below. Uncalibrated, so good for comparing antenna positions; below about -77 dBm the tuner cannot tell any lower, and the margin is the better guide.
