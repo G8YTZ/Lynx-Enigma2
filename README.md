@@ -24,7 +24,7 @@ A satellite receiver's tuner covers 950 to 2150 MHz, so 23 cm repeaters go strai
 - **Every UK repeater, ready to tune:** From the RSGB ETCC list (frequencies, locations, status) and the BATC wiki (symbol rates), sorted by distance from you.
 - **Pick and watch:** Choose a repeater and the box finds its programme by itself; no channel numbers, and it still works if a repeater changes its service name or IDs.
 - **BATC streams:** Repeaters streaming on the BATC streamer are marked LIVE and play over the internet, so you can see a repeater beyond radio range, or check it is on before pointing an antenna.
-- **Lynx on screen:** The broadcast name, callsign, town, distance, frequency, symbol rate, picture size and LNB supply, with the real modulation and FEC, signal level, SNR and margin read from the demodulator, and a **magic eye** for pointing antennas.
+- **Lynx on screen:** The broadcast name, callsign, town, distance, frequency, symbol rate, picture size and LNB supply, with the real modulation and FEC, signal level, MER and margin read from the demodulator, and a **magic eye** for pointing antennas.
 - **Other bands** (3.4 and 10 GHz) through a suitable LNB, each with its own local oscillator.
 
 LNB power is on by default, to feed the small inline preamplifiers that run from it, and can be switched off in Settings.
@@ -173,7 +173,7 @@ rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters; /sbin/init 4; s
 **The Lynx bar,** while watching:
 - **The PPM:** At the left end of the bar, a BBC-style stereo peak programme meter, as on Lynx Rx: red needle for the left channel, green for the right, PPM 4 at -18 dBFS. On air for now; at rest on BATC streams.
 - **The magic eye:** Its dark wedge narrows as the signal gets stronger and the margin grows, and closes on a strong, clean signal. Wide open means you are near the edge; dark means no lock.
-- **Margin:** Beside the SNR, how many dB the signal is above what its modulation and FEC need to decode. Around +3 is a working signal, +10 or more plenty in hand, below +1 at the edge of breaking up.
+- **Margin:** Beside the MER, how many dB the signal is above what its modulation and FEC need to decode. Around +3 is a working signal, +10 or more plenty in hand, below +1 at the edge of breaking up.
 - **Level:** In dBm on the line below. Uncalibrated, so good for comparing antenna positions; below about -77 dBm the tuner cannot tell any lower, and the margin is the better guide.
 - **CH+ and CH-** (or up and down): The next or previous repeater in the list, by the same route (on air or stream). Keep pressing to scroll; each press moves straight on.
 - **OK:** Hides or shows the bar.

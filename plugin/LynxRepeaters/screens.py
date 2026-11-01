@@ -13,7 +13,7 @@
   ManualTune     a frequency and symbol rate typed in, watched or kept as a
                  preset
   LynxBar        a strip along the bottom while watching: callsign, town,
-                 distance, frequency, symbol rate and live SNR
+                 distance, frequency, symbol rate and live MER
   LynxSettings   locator, LNB supply voltage, per-band LNB oscillators
 """
 from __future__ import absolute_import, division, print_function
