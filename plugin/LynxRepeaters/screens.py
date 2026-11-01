@@ -21,6 +21,7 @@ from __future__ import absolute_import, division, print_function
 from .log import log
 
 import re
+import sys
 import time
 
 from enigma import eServiceReference, getDesktop
@@ -176,19 +177,33 @@ class PPMMeter(object):
     def __init__(self):
         from .ppm import Reader
         self.reader = Reader()
-        self.proc, self.url, self.thread = None, None, None
+        self.proc, self.url, self.thread, self.failed_at = None, None, None, None
         import threading
         self.lock = threading.Lock()
+
+    RETRY_S = 30                         # after ffmpeg gives up (no sound track, say)
+    ERRORS = "/tmp/lynx-ppm.log"
 
     def start(self, url):
         if url == self.url and self.proc and self.proc.poll() is None:
             return
+        if url == self.url and self.proc and self.proc.poll() is not None:
+            # It ended by itself: say why once, then wait before trying again.
+            if not self.failed_at:
+                self.failed_at = time.time()
+                log("PPM: ffmpeg stopped (%s); trying again in %d s" % (self._last_error(), self.RETRY_S))
+                with self.lock:
+                    self.reader.rest()
+            if time.time() - self.failed_at < self.RETRY_S:
+                return
         self.stop()
+        self.failed_at = None
         import subprocess
         from .ppm import command
         try:
-            self.proc = subprocess.Popen(command(url), stdout=subprocess.PIPE, stderr=open(os.devnull, "w"),
-                                         preexec_fn=os.setsid)
+            with open(self.ERRORS, "w") as errors:
+                self.proc = subprocess.Popen(command(url), stdout=subprocess.PIPE, stderr=errors,
+                                             preexec_fn=os.setsid)
         except (OSError, ValueError) as e:
             log("PPM: could not start ffmpeg: %s" % e)
             self.proc = None
@@ -207,8 +222,16 @@ class PPMMeter(object):
             with self.lock:
                 self.reader.line(raw.decode("latin-1"))
 
+    def _last_error(self):
+        try:
+            with open(self.ERRORS) as f:
+                lines = [l.strip() for l in f if l.strip()]
+            return lines[-1][:160] if lines else "no message"
+        except (IOError, OSError):
+            return "no message"
+
     def stop(self):
-        proc, self.proc, self.url = self.proc, None, None
+        proc, self.proc, self.url, self.failed_at = self.proc, None, None, None
         if proc and proc.poll() is None:
             import signal as sig
             try:
@@ -853,10 +876,14 @@ def _bar_skin(with_ppm):
     x = 150 if with_ppm else 40
     ppm = ""
     if with_ppm:
-        ppm = ('<ePixmap position="24,10" size="110,110" alphatest="blend" pixmap="%s"/>'
+        # All four layers are named widgets: Enigma2 creates named widgets in
+        # the order the screen adds them, and plain ePixmaps after all of
+        # them, on top (Screen.createGUIScreen). As ePixmaps the housing and
+        # screw hid the needles (1 Nov 2026).
+        ppm = ('<widget name="ppm_housing" position="24,10" size="110,110" alphatest="blend" pixmap="%s"/>'
                '<widget name="ppm_green" position="24,10" size="110,110" alphatest="blend" pixmaps="%s"/>'
                '<widget name="ppm_red" position="24,10" size="110,110" alphatest="blend" pixmaps="%s"/>'
-               '<ePixmap position="24,10" size="110,110" alphatest="blend" pixmap="%s"/>' % (
+               '<widget name="ppm_screw" position="24,10" size="110,110" alphatest="blend" pixmap="%s"/>' % (
                    PPM_PIXMAPS["housing"], ",".join(PPM_PIXMAPS["green"]), ",".join(PPM_PIXMAPS["red"]),
                    PPM_PIXMAPS["screw"]))
     return _scale("""
@@ -884,7 +911,9 @@ class LynxBar(Screen):
     def __init__(self, session, entry, owner=None):
         # The PPM's widgets only when it is shown: its own skin name, so the
         # two layouts are never mixed up.
-        self.with_ppm = bool(cfg.ppm.value and PPM_PIXMAPS)
+        # Python 3 only: the layers rely on the screen keeping the order they
+        # were added in, which Python 2's dictionaries do not.
+        self.with_ppm = bool(cfg.ppm.value and PPM_PIXMAPS and sys.version_info >= (3, 7))
         if self.with_ppm:
             self.skin, self.skinName = BAR_SKIN_PPM, "LynxBarPPM"
         Screen.__init__(self, session)
@@ -926,8 +955,11 @@ class LynxBar(Screen):
         # The PPM: needles at rest until the sound is metered.
         self.meter, self.ppm_shown = None, (None, None)
         if self.with_ppm:
+            from Components.Pixmap import Pixmap
+            self["ppm_housing"] = Pixmap()          # bottom to top, in this order
             self["ppm_green"] = MultiPixmap()
             self["ppm_red"] = MultiPixmap()
+            self["ppm_screw"] = Pixmap()
             self.meter = PPMMeter()
             self.ppm_timer, self._pt = _timer(self._ppm)
             self.onClose.append(self.ppm_timer.stop)
