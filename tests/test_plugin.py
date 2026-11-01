@@ -326,6 +326,8 @@ def test_match_playing():
     ref = "1:0:1:1:1:FF01:C02B2E:0:0:0:"                                      # 1304 MHz: GB3KM, GB3OO, GB3SQ
     oo = tuning.match_playing(rows, ref, "GB3OO Folkestone")
     assert oo["call"] == "GB3OO" and oo["locked_sr_ks"] == 2000
+    vert = "1:0:1:1:1:FF01:C0AB2E:0:0:0:"          # the same at 13 V (vertical): Enigma2 sets bit 15
+    assert tuning.match_playing(rows, vert, "GB3OO Folkestone")["call"] == "GB3OO"   # seen on the box, 1 Nov 2026
     assert tuning.match_playing(rows, ref, "Test card")["call"] == rows[[e["box_khz"] for e in rows].index(11054000)]["call"]
     hv = tuning.match_playing(rows, "5001:0:1:0:0:0:0:0:0:0:rtmp%3a//rtmp.batc.org.uk/live/gb3hv:GB3HV Alton")
     assert hv["call"] == "GB3HV" and hv["via_stream"]

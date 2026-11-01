@@ -524,7 +524,7 @@ def match_playing(entries, ref, name=""):
         return None
     if ns >> 16 != repeaters.BOX_ORBPOS:
         return None
-    mhz = ns & 0xFFFF
+    mhz = ns & 0x7FFF                 # bit 15 is the polarisation (vertical, 13 V), not MHz
     same = [e for e in entries if e.get("box_khz") and e["box_khz"] // 1000 == mhz]
     if not same:
         return None
