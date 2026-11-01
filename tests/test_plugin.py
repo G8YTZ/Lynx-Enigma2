@@ -580,20 +580,26 @@ def test_ppm():
     assert abs(left - 4) < 0.05 and right < 0
     cmd = ppm.command("http://127.0.0.1:8001/1:0:1:1:1:FF01:C0AB2E:0:0:0:")
     assert cmd[0] == "ffmpeg" and "comment=" + ppm.MARKER in cmd and "-vn" in cmd
-    listing = """File formats:
- D. = Demuxing supported
- .E = Muxing supported
+    box = """Formats:
+ D.. = Demuxing supported
+ .E. = Muxing supported
+ ..d = Is a device
  ---
-  E adts            ADTS AAC (Advanced Audio Coding)
-  E mpegts          MPEG-TS (MPEG-2 Transport Stream)
-  E s16le           PCM signed 16-bit little-endian
-  E wav             WAV / WAVE (Waveform Audio)
-"""
-    have = ppm.muxers(listing)
-    assert "null" not in have and ppm.discard(have) == "s16le"    # OpenATV 8.0.1's ffmpeg, 1 Nov 2026
-    assert ppm.discard(ppm.muxers("  E null            raw null video\n")) == "null"
-    cmd = ppm.command("http://x", "s16le")
-    assert cmd[-5:] == ["pcm_s16le", "-f", "s16le", "-y", "/dev/null"]
+  E  ac3             raw AC-3
+  E  adts            ADTS AAC (Advanced Audio Coding)
+  Ed alsa            ALSA audio output
+  E  matroska        Matroska
+  E  mpegts          MPEG-TS (MPEG-2 Transport Stream)
+  Ed video4linux2,v4l2 Video4Linux2 output device
+"""                                                   # OpenATV 8.0.1's ffmpeg, 1 Nov 2026 (cut down)
+    have = ppm.muxers(box)
+    assert {"ac3", "adts", "alsa", "matroska", "mpegts", "v4l2"} <= have and "null" not in have
+    assert ppm.discard(have) == ("matroska", "pcm_s16le")
+    enc = ppm.encoders(" A....D aac                  AAC (Advanced Audio Coding)\n A....D mp2   MP2\n")
+    assert enc == {"aac", "mp2"} and ppm.discard(have, enc) == ("mpegts", "mp2")
+    assert ppm.discard(ppm.muxers(" DE null            raw null video\n")) == ("null", None)
+    cmd = ppm.command("http://x", ("matroska", "pcm_s16le"))
+    assert cmd[-6:] == ["-c:a", "pcm_s16le", "-f", "matroska", "-y", "/dev/null"]
 
 
 if __name__ == "__main__":

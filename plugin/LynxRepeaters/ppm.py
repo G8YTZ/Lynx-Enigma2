@@ -86,31 +86,48 @@ def frame_angle(n):
     return FIRST_ANGLE + n
 
 
-# Where the decoded sound goes once metered: nowhere. OpenATV's ffmpeg has
-# no "null" output format (1 Nov 2026: "Requested output format 'null' is
-# not known"), so raw PCM to /dev/null is the usual choice; the first of
-# these that the box's ffmpeg has is used.
-DISCARD = ("null", "s16le", "wav", "au")
+# Where the decoded sound goes once metered: nowhere, but ffmpeg needs an
+# output. OpenATV's ffmpeg is a cut-down build with no "null", "s16le",
+# "wav" or "au" output (1 Nov 2026; it has ac3, adts, matroska, mpegts and a
+# few more), so Lynx asks it what it has and uses the first of these
+# (output format, audio encoder) pairs it can, writing to /dev/null.
+DISCARD = (("null", None), ("s16le", "pcm_s16le"), ("wav", "pcm_s16le"), ("matroska", "pcm_s16le"),
+           ("mpegts", "mp2"), ("adts", "aac"), ("ac3", "ac3"))
 
 
 def muxers(text):
-    """The output formats ffmpeg -muxers lists, from its text."""
+    """Output formats from ffmpeg -muxers (or -formats): lines such as
+    "  E  mpegts   MPEG-TS", " DE  matroska ...", "  Ed alsa ..."."""
     out = set()
     for line in text.splitlines():
-        m = re.match(r"\s*[D ]?E[ d]?\s+([A-Za-z0-9_,]+)\s", line)
-        if m:
-            out.update(m.group(1).split(","))
+        m = re.match(r"\s*([D.\s]?E[d.\s]?)\s+([A-Za-z0-9_,]+)\s", line)
+        if m and "E" in m.group(1):
+            out.update(m.group(2).split(","))
     return out
 
 
-def discard(available):
-    for name in DISCARD:
-        if name in available:
-            return name
-    return "s16le"
+def encoders(text):
+    """Audio encoders from ffmpeg -encoders: lines such as " A....D aac  AAC"."""
+    out = set()
+    for line in text.splitlines():
+        m = re.match(r"\s*A[A-Z.]{5}\s+(\S+)\s", line)
+        if m:
+            out.add(m.group(1))
+    return out
 
 
-def command(url, muxer="null"):
+def discard(available, codecs=None):
+    """(output format, audio encoder or None) to throw the sound away with.
+    Without an encoder list, PCM is taken as there (it nearly always is)."""
+    for muxer, codec in DISCARD:
+        if muxer not in available:
+            continue
+        if codec is None or (codec in codecs if codecs else codec.startswith("pcm_")):
+            return muxer, codec
+    return "matroska", "pcm_s16le"
+
+
+def command(url, output=("null", None)):
     """ffmpeg, reading one programme's sound and printing per-block peaks."""
     af = ("aformat=channel_layouts=stereo,asetnsamples=n=%d:p=0,"
           "astats=metadata=1:reset=1:measure_perchannel=Peak_level:measure_overall=none,"
@@ -118,7 +135,7 @@ def command(url, muxer="null"):
     return ["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-fflags", "nobuffer",
             "-i", url, "-vn", "-sn", "-dn", "-map", "0:a:0", "-af", af,
             "-metadata", "comment=" + MARKER] + (
-        ["-f", "null", "-"] if muxer == "null" else ["-c:a", "pcm_s16le", "-f", muxer, "-y", "/dev/null"])
+        ["-f", "null", "-"] if output[0] == "null" else ["-c:a", output[1], "-f", output[0], "-y", "/dev/null"])
 
 
 _PTS = re.compile(r"pts_time:\s*([-0-9.]+)")

@@ -267,15 +267,17 @@ def _discard_format():
     """The output format the PPM's ffmpeg throws its sound away in: asked
     of the box's ffmpeg once, as builds differ."""
     if not _DISCARD:
-        from .ppm import discard, muxers
+        from .ppm import discard, encoders, muxers
         import subprocess
-        try:
-            text = subprocess.Popen(["ffmpeg", "-hide_banner", "-muxers"], stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT).communicate()[0].decode("latin-1")
-        except (OSError, ValueError):
-            text = ""
-        _DISCARD.append(discard(muxers(text)))
-        log("PPM: ffmpeg discards the sound as %s" % _DISCARD[0])
+
+        def ask(what):
+            try:
+                return subprocess.Popen(["ffmpeg", "-hide_banner", what], stdout=subprocess.PIPE,
+                                        stderr=subprocess.STDOUT).communicate()[0].decode("latin-1")
+            except (OSError, ValueError):
+                return ""
+        _DISCARD.append(discard(muxers(ask("-muxers")), encoders(ask("-encoders"))))
+        log("PPM: ffmpeg discards the sound as %s (%s)" % _DISCARD[0])
     return _DISCARD[0]
 
 
