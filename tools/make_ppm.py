@@ -75,16 +75,13 @@ def housing(g):
     d.text((cx, cy + frame - 14 * s), "PPM", font=small, fill=(140, 140, 140, 255), anchor="mm")
     for a in (-HALF_SPAN - MINOR_EXTRA, HALF_SPAN + MINOR_EXTRA):
         line(d, g.point(g.needle - 3 * s, a), g.point(g.needle + 4 * s, a), (255, 255, 255, 255), 1.2 * s)
-    # On a 1280 x 720 menu (73 px) the numbers would be 7 px: make them bigger.
-    numbers = ImageFont.truetype(FONT_BOLD, int((13 if g.size >= 100 else 17) * s))
+    numbers = ImageFont.truetype(FONT_BOLD, int(13 * s))
     for mark in range(1, 8):
         a = scale_angle(mark)
         line(d, g.point(g.needle - 9 * s, a), g.point(g.needle + 4 * s, a), (255, 255, 255, 255),
              (2.2 if mark == 4 else 1.4) * s)
-        if g.size < 100 and mark not in (1, 4, 7):
-            continue                     # too crowded at 73 px: 1, 4 and 7 carry the scale
-        d.text(g.point(g.needle + (14 if g.size >= 100 else 15) * s, a), str(mark), font=numbers,
-               fill=(255, 255, 255, 255), anchor="mm")
+        # Every number, at every size (Justin, 1 Nov 2026: 1, 4 and 7 alone would not do).
+        d.text(g.point(g.needle + 14 * s, a), str(mark), font=numbers, fill=(255, 255, 255, 255), anchor="mm")
     return g.done(img)
 
 
