@@ -20,6 +20,7 @@ cp "$HERE"/plugin/LynxRepeaters/*.py "$HERE/data/repeaters.json" "$STAGE/"
 cp -R "$HERE/plugin/LynxRepeaters/eye" "$STAGE/"
 cp -R "$HERE/plugin/LynxRepeaters/ppm" "$STAGE/"
 cp -R "$HERE/plugin/LynxRepeaters/bubble" "$STAGE/"
+cp -R "$HERE/plugin/LynxRepeaters/qr" "$STAGE/"
 # COPYFILE_DISABLE stops macOS tar adding ._ files; tar over ssh avoids
 # needing SFTP on the box; -m stops tar fussing when the box's clock is wrong.
 COPYFILE_DISABLE=1 tar -C "$STAGE" -cf - . | \

@@ -980,6 +980,7 @@ class RepeaterList(Screen):
         choices.append((_("Add a BATC stream by its name (a member's stream)"), self.add_stream))
         if cfg.streams.value:
             choices.append((_("Update the BATC stream status now (0)"), self.update_streams))
+        choices.append((_("BATC chat: hide or report"), lambda: self.session.open(ChatSafety, self.chat)))
         choices.append((_("Settings"), self.settings))
         choices.append((_("Check for a newer Lynx now"), lambda: updater(self.session).check(manual=True)))
         choices.append((_("Leave Lynx"), self.leave))
@@ -1300,9 +1301,36 @@ class ChatOverlay(object):
     START_MS = 6000                    # let the picture start first (Justin: streams were slower to start)
 
     def __init__(self, session):
+        import collections
+        import threading
+        from .chat import RECENT, load_hidden
         self.session, self.room, self.listener = session, None, None
         self.dialog = session.instantiateDialog(ChatBubbles)
         self.later, self._l = _timer(self._start)
+        self.hidden = load_hidden()
+        self.recent = collections.deque(maxlen=RECENT)   # (name, text, hhmm), for hide or report
+        self.lock = threading.Lock()
+
+    def heard(self, name, text, hhmm):
+        """From the listener's thread: kept for the hide or report screen,
+        and shown unless the viewer has hidden that sender."""
+        from .chat import is_hidden
+        with self.lock:
+            self.recent.append((name, text, hhmm))
+        if not is_hidden(name, self.hidden):
+            self.dialog.heard(name, text, hhmm)
+
+    def messages(self):
+        with self.lock:
+            return list(self.recent)
+
+    def set_hidden(self, names):
+        from .chat import save_hidden
+        self.hidden = list(names)
+        try:
+            save_hidden(self.hidden)
+        except (IOError, OSError) as e:
+            log("chat: could not save hidden senders: %s" % e)
 
     def follow(self, room):
         if not cfg.chat.value:
@@ -1323,7 +1351,7 @@ class ChatOverlay(object):
             return
         from .chat import Listener
         try:
-            self.listener = Listener(self.room, self.dialog.heard, log)
+            self.listener = Listener(self.room, self.heard, log)
             self.listener.start()
         except ValueError:
             self.listener = None
@@ -1736,6 +1764,98 @@ class ManualTune(ConfigListScreen, Screen):
             return
         log("preset saved: %s" % preset)
         self.close(("saved", name))
+
+
+_QR_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "qr")
+
+
+def _qr_pixmap():
+    path = os.path.join(_QR_DIR if _factor() > 0.8 else os.path.join(_QR_DIR, "hd"), "report.png")
+    return path if os.path.exists(path) else None
+
+
+class ChatSafety(Screen):
+    """MENU, BATC chat: hide or report. The last messages heard, OK on one
+    hides (or shows again) everything from its sender on this box; and a
+    QR code for BATC's own incident report form, which deals with what is
+    said (BATC's Online Safety Act policies; posting is for members only).
+    Lynx only ever reads the chat."""
+
+    QR = _qr_pixmap()
+    skin = _scale("""
+<screen name="LynxChatSafety" position="center,center" size="1600,860" title="BATC chat: hide or report" backgroundColor="#00141414" flags="wfNoBorder">
+  <eLabel position="0,0" size="1600,90" backgroundColor="#00d0021b"/>
+  <widget zPosition="1" name="title" position="40,0" size="1500,90" font="Regular;40" valign="center" foregroundColor="#00ffffff" backgroundColor="#00d0021b"/>
+  <widget zPosition="1" source="list" render="Listbox" position="30,110" size="1080,620" scrollbarMode="showOnDemand" backgroundColor="#00141414" backgroundColorSelected="#00d0021b">
+    <convert type="StringList"/>
+  </widget>
+  <widget zPosition="1" name="report" position="1140,110" size="430,190" font="Regular;26" foregroundColor="#00e0e0e0" backgroundColor="#00141414"/>
+""" + ('<widget zPosition="1" name="qr" position="1205,310" size="300,300" alphatest="off" pixmap="%s"/>' % QR if QR else "") + """
+  <widget zPosition="1" name="url" position="1140,620" size="430,90" font="Regular;24" halign="center" foregroundColor="#00ffd200" backgroundColor="#00141414"/>
+  <widget zPosition="1" name="status" position="30,745" size="1540,44" font="Regular;28" valign="center" foregroundColor="#00ffd200" backgroundColor="#00141414"/>
+  <eLabel position="40,800" size="8,44" backgroundColor="#00d0021b"/>
+  <widget zPosition="1" source="key_red" render="Label" position="56,800" size="300,44" font="Regular;30" valign="center" transparent="1"/>
+  <eLabel position="400,800" size="8,44" backgroundColor="#0000a03c"/>
+  <widget zPosition="1" source="key_green" render="Label" position="416,800" size="600,44" font="Regular;30" valign="center" transparent="1"/>
+</screen>""")
+
+    def __init__(self, session, overlay):
+        Screen.__init__(self, session)
+        from .chat import REPORT_TEXT
+        self.overlay = overlay
+        self.setTitle(_("BATC chat: hide or report"))
+        self["title"] = Label(_("BATC chat: hide or report"))
+        self["list"] = List([])
+        self["report"] = Label(_("To report a message, scan this with a phone, or go to the address "
+                                 "below, and choose Streamer chat. BATC deals with what is said; "
+                                 "Lynx only reads the chat."))
+        if self.QR:
+            from Components.Pixmap import Pixmap
+            self["qr"] = Pixmap()
+        self["url"] = Label(REPORT_TEXT)
+        self["status"] = Label()
+        self["key_red"] = StaticText(_("Close"))
+        self["key_green"] = StaticText(_("OK: hide or show this sender"))
+        self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
+            "ok": self.toggle, "green": self.toggle,
+            "cancel": self.close, "red": self.close,
+        }, -1)
+        self.onLayoutFinish.append(self.fill)
+
+    def fill(self):
+        from .chat import is_hidden
+        rows = []
+        for name, text, hhmm in reversed(self.overlay.messages()):     # newest first
+            mark = _(" (hidden)") if is_hidden(name, self.overlay.hidden) else ""
+            short = text if len(text) <= 60 else text[:57] + "..."
+            rows.append(("%s  %s%s: %s" % (hhmm, name, mark, short), name))
+        heard = set(r[1].lower() for r in rows)
+        for name in self.overlay.hidden:
+            if name.lower() not in heard:
+                rows.append((_("Hidden: %s (OK to show again)") % name, name))
+        if not rows:
+            rows = [(_("No chat messages heard yet while watching."), None)]
+        self.rows = rows
+        self["list"].setList([r[0] for r in rows])
+        if not self["status"].getText():
+            self["status"].setText(_("%d sender(s) hidden on this box") % len(self.overlay.hidden))
+
+    def toggle(self):
+        i = self["list"].getIndex()
+        if i is None or i >= len(self.rows) or not self.rows[i][1]:
+            return
+        from .chat import is_hidden
+        name = self.rows[i][1]
+        hidden = [h for h in self.overlay.hidden if h.lower() != name.lower()]
+        if is_hidden(name, self.overlay.hidden):
+            self["status"].setText(_("%s shown again") % name)
+        else:
+            hidden.append(name)
+            self["status"].setText(_("Messages from %s are now hidden on this box") % name)
+        self.overlay.set_hidden(hidden)
+        log("chat: hidden senders now %s" % hidden)
+        self.fill()
+        self["list"].setIndex(min(i, len(self.rows) - 1))
 
 
 class AddStream(ConfigListScreen, Screen):

@@ -51,6 +51,43 @@ EXTRA_S_PER_LINE = 1                       # and a second more for each line pas
 _ROOM = re.compile(r"^[A-Za-z0-9_.-]+$")   # stream names, as streams.py checks them
 
 
+# Viewers can hide a sender (Apple's rule for apps that show other people's
+# messages; right for every Lynx). Kept beside the presets, outside the
+# plugin folder, so updates keep it.
+HIDDEN = "/etc/enigma2/lynx_chat_hidden.json"
+REPORT_URL = "https://batc.org.uk/incident-report-form/"
+REPORT_TEXT = "batc.org.uk/incident-report-form"
+RECENT = 12                                # messages kept for the hide or report screen
+
+
+def load_hidden(path=HIDDEN):
+    """Hidden senders, as typed in the chat; compared without case."""
+    try:
+        with open(path) as f:
+            names = json.load(f)
+        return [_native(n) for n in names if isinstance(n, (type(u""), str)) and n.strip()]
+    except (IOError, OSError, ValueError):
+        return []
+
+
+def save_hidden(names, path=HIDDEN):
+    seen, keep = set(), []
+    for n in names:                        # one of each, whatever the case
+        if n.strip().lower() not in seen:
+            seen.add(n.strip().lower())
+            keep.append(n.strip())
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(sorted(keep, key=lambda n: n.lower()), f)
+    import os
+    os.rename(tmp, path)
+
+
+def is_hidden(name, hidden):
+    n = (name or "").strip().lower()
+    return any(n == h.strip().lower() for h in hidden)
+
+
 def js_len(text):
     """A string's length as JavaScript counts it: characters outside the
     Basic Multilingual Plane (emoji) count two."""

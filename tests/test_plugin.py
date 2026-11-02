@@ -582,6 +582,20 @@ def test_chat():
         pass
 
 
+def test_chat_hidden():
+    import os
+    import tempfile
+    from LynxRepeaters import chat
+    path = os.path.join(tempfile.mkdtemp(), "hidden.json")
+    assert chat.load_hidden(path) == []                       # none yet
+    chat.save_hidden(["M0ABC", "g4xyz", "m0abc"], path)
+    names = chat.load_hidden(path)
+    assert sorted(n.lower() for n in names) == ["g4xyz", "m0abc"]
+    assert chat.is_hidden("G4XYZ", names) and chat.is_hidden(" m0abc ", names)
+    assert not chat.is_hidden("G8YTZ", names)
+    assert chat.REPORT_URL == "https://batc.org.uk/incident-report-form/"
+
+
 def test_ppm_tap():
     from LynxRepeaters import ppm
     data = {"pids": [(0, "pat"), (0x1000, "pmt"), (0x100, "video"), (0x101, "audio"), (0x102, "audio"),
