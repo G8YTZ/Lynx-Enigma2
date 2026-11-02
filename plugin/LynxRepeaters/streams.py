@@ -125,6 +125,12 @@ def _match(streams, call):
     return None
 
 
+def chat_for(streams, call):
+    """The BATC stream whose chat goes with a repeater, live or not: its
+    chat room is there whether or not it is streaming (2 Nov 2026)."""
+    return _match(streams, call) if call else None
+
+
 def for_call(streams, call):
     """The live stream for a repeater, matched on the stream's name (gb3oo),
     or None."""

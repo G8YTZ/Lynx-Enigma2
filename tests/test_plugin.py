@@ -570,6 +570,10 @@ def test_chat():
     name, said, hhmm = chat.message(evs[0][1])
     assert name == "KD6ILO_Mario" and said.startswith("hi ") and len(hhmm) == 5 and hhmm[2] == ":"
     assert chat.message({"name": "", "message": "x"}) is None and chat.message("x") is None
+    from LynxRepeaters import streams
+    listed = [{"key": "gb3oo", "name": "GB3OO Folkestone", "live": False}]
+    assert streams.chat_for(listed, "GB3OO")["key"] == "gb3oo"           # off line: its chat is still there
+    assert streams.chat_for(listed, "GB3HV") is None and streams.chat_for(listed, None) is None
     assert chat.show_for(1) == 10 and chat.show_for(2) == 10 and chat.show_for(4) == 12
     try:
         chat.Listener("../etc", lambda *a: None)

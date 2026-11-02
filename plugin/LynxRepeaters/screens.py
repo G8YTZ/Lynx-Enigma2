@@ -719,7 +719,7 @@ class RepeaterList(Screen):
         """Open the Lynx bar, or move the open one on to what now plays."""
         self.watching = watching
         self._red()
-        self.chat.follow(chat_room(watching))
+        self.chat.follow(chat_room(watching, self.sync.streams))
         if self.bar:
             self.bar.set_entry(watching)
         else:
@@ -1051,9 +1051,14 @@ BAR_SKIN = _bar_skin(False)
 BAR_SKIN_PPM = _bar_skin(True) if PPM_PIXMAPS else BAR_SKIN
 
 
-def chat_room(entry):
-    """The BATC stream whose chat goes with what is watched, or None."""
-    s = (entry or {}).get("stream")
+def chat_room(entry, listed=()):
+    """The BATC stream whose chat goes with what is watched, on air or as a
+    stream: the row's own stream, or else the one named after its callsign
+    in BATC's list even when it is not streaming now. None if neither."""
+    entry = entry or {}
+    s = entry.get("stream")
+    if not isinstance(s, dict) and not entry.get("manual"):
+        s = streams.chat_for(listed or [], entry.get("call"))
     return s.get("key") if isinstance(s, dict) else None
 
 
