@@ -878,8 +878,35 @@ class RepeaterList(Screen):
             self.session.nav.playService(self.old_service)   # put back what was on
         self.close()
 
-    def watch_stream(self):
-        e = self._current()
+    # On the Lynx bar, the same repeater either way without going back to
+    # the list (Justin, 2 Nov 2026): green on air, yellow its BATC stream;
+    # yellow again on the stream tries the other player.
+
+    def bar_green(self):
+        w = self.watching
+        if not w or self.tuner.busy or not w.get("via_stream"):
+            return                                   # already on air, or tuning
+        if not w.get("output"):
+            self._say(_("%s is on the BATC streamer only: nothing to tune on air") % w["call"])
+            return
+        e = plain_entry(w)
+        if self.bar:
+            self.bar.set_entry(dict(e, locked_sr_ks=None, pending=True))
+        self.watch(entry=e)
+
+    def bar_yellow(self):
+        w = self.watching
+        if not w or self.tuner.busy:
+            return
+        if w.get("via_stream"):
+            return self.other_player()
+        if not w.get("stream"):
+            self._say(_("%s is not streaming on BATC now") % w["call"])
+            return
+        self.watch_stream(plain_entry(w))
+
+    def watch_stream(self, entry=None):
+        e = entry or self._current()
         if not e or not e.get("stream") or self.tuner.busy:
             return
         self.stream_entry = e
@@ -1080,6 +1107,24 @@ def _bar_skin(with_ppm):
 
 BAR_SKIN = _bar_skin(False)
 BAR_SKIN_PPM = _bar_skin(True) if PPM_PIXMAPS else BAR_SKIN
+
+
+def plain_entry(watching):
+    """The list's row for what is being watched, without how it is watched."""
+    return dict((k, v) for k, v in watching.items()
+                if k not in ("via_stream", "player", "other_player", "locked_sr_ks", "pending"))
+
+
+def bar_hint(entry):
+    """The Lynx bar's key hint: what green and yellow do from here."""
+    if entry.get("via_stream"):
+        swap = _("YELLOW player") if entry.get("other_player") else ""
+        if entry.get("output"):
+            return "  ".join(x for x in (_("GREEN on air"), swap, _("EXIT list")) if x)   # the hint is 410 px wide
+        return "  ".join(x for x in (_("CH+/- next"), swap, _("EXIT list")) if x)
+    if entry.get("stream"):
+        return _("YELLOW stream  CH+/- next  EXIT list")
+    return _("CH+/- next   OK hide   EXIT list")
 
 
 def chat_room(entry, listed=()):
@@ -1312,7 +1357,8 @@ class LynxBar(Screen):
         self["hint"] = Label()
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
             "ok": self.toggle,
-            "yellow": lambda: self.owner and self.owner.other_player(),
+            "green": lambda: self.owner and self.owner.bar_green(),
+            "yellow": lambda: self.owner and self.owner.bar_yellow(),
             "cancel": lambda: self.close(False),
         }, -1)
         # CH+/CH- and the up/down arrows step through Lynx's own list. The
@@ -1481,8 +1527,7 @@ class LynxBar(Screen):
         if prog:
             self["hint"].setText(_("< > programme %d/%d   CH+/- next   EXIT list") % prog)
         else:
-            self["hint"].setText(_("CH+/- next  OK hide  EXIT list  YELLOW player")
-                                 if self.entry.get("other_player") else _("CH+/- next   OK hide   EXIT list"))
+            self["hint"].setText(bar_hint(self.entry))
         waiting = self.entry.get("pending") or self.notice_text
         p = {} if waiting else live(self.session)
         self.modcod = p

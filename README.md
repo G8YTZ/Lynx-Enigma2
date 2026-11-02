@@ -182,13 +182,13 @@ rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters; /sbin/init 4; s
 - **A member's stream:** **MENU, Add a BATC stream by its name**: type the end of its address on the BATC streamer (for batc.org.uk/live/g4fre, that is g4fre). It goes at the top of the list as a preset, marked LIVE while it is streaming; OK watches it.
 
 **The Lynx bar,** while watching:
-- **The PPM:** At the left end of the bar, a BBC-style stereo peak programme meter, as on Lynx Rx: red needle for the left channel, green for the right, PPM 4 at -18 dBFS. On air for now; at rest on BATC streams.
+- **The PPM:** At the left end of the bar, a BBC-style stereo peak programme meter, as on Lynx Rx: red needle for the left channel, green for the right, PPM 4 at -18 dBFS. On air only: it disappears on BATC streams.
 - **The magic eye:** Its dark wedge narrows as the signal gets stronger and the margin grows, and closes on a strong, clean signal. Wide open means you are near the edge; dark means no lock.
 - **Margin:** Beside the MER, how many dB the signal is above what its modulation and FEC need to decode. Around +3 is a working signal, +10 or more plenty in hand, below +1 at the edge of breaking up.
 - **Level:** In dBm on the line below. Uncalibrated, so good for comparing antenna positions; below about -77 dBm the tuner cannot tell any lower, and the margin is the better guide.
 - **CH+ and CH-** (or up and down): The next or previous repeater in the list, by the same route (on air or stream). Keep pressing to scroll; each press moves straight on.
 - **OK:** Hides or shows the bar.
-- **Yellow,** on a stream: Swaps between gstplayer and exteplayer3, for a stream that gives sound but no picture.
+- **Green and yellow:** The same repeater the other way, without going back to the list: **green** watches it on air, **yellow** its BATC stream (when it is streaming). Yellow again on the stream swaps between gstplayer and exteplayer3.
 - **EXIT:** Back to the list.
 
 **Leaving Lynx:** Only through **MENU, Leave Lynx**, so a stray press never throws you out. What is playing carries on.
@@ -206,7 +206,7 @@ rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters; /sbin/init 4; s
 - **LNB supply off:** It applies from the next tune. It also cuts power to a 19.2E satellite dish on the same tuner, so leave it on if the box watches satellite TV too.
 - **"No tuner set up":** Tuner A is not configured; see step 4 of setting up.
 - **"No signal" on a repeater you can receive:** Its listed symbol rate may be wrong. Use **MENU, Watch ... trying every symbol rate**.
-- **Sound but no picture on a stream:** Press **yellow** on the bar to try the other player, or select the stream again: these players can miss the picture when they join a stream between keyframes. A stream whose keyframes are far apart (GB3NQ, October 2026) can stay sound-only; that is for its keeper to fix.
+- **Sound but no picture on a stream:** Lynx tries the other player by itself if there is still no picture after 12 s; you can also press **yellow** on the bar to do it, or select the stream again: these players can miss the picture when they join a stream between keyframes. A stream whose keyframes are far apart (GB3NQ, October 2026) can stay sound-only; that is for its keeper to fix.
 - **Stereo only from a 5.1 programme:** The box is mixing it down. Set **AC3 downmix** and **DTS downmix** to **No** in its audio settings (see [Surround sound](#4-using-lynx)), and check that the TV or amplifier is set to receive surround over HDMI or optical.
 - **Lynx's log:** On the box, `cat /tmp/lynx.log` (cleared at each restart). Include it when reporting a problem.
 
