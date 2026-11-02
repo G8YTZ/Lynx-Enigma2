@@ -23,15 +23,16 @@ OUT = os.path.join(HERE, "..", "plugin", "LynxRepeaters", "bubble")
 SS = 4
 W, PAD, WHO_H, LINE_H, TAIL, RADIUS = 640, 16, 38, 36, 12, 34
 LINES = 5
-BLUE = (10, 132, 255, 235)       # Apple's message blue, a touch see-through
+BLUE = (10, 132, 255, 255)       # Apple's message blue, solid so the stretched middle matches
+LEFT, RIGHT, TIP = RADIUS, RADIUS + 14, 14   # the ends' widths; the right end carries the tail
 
 
 def height(lines):
     return PAD + WHO_H + lines * LINE_H + PAD
 
 
-def bubble(lines, scale):
-    w, h = int(round(W * scale)), int(round((height(lines) + TAIL) * scale))
+def bubble(lines, scale, width=W):
+    w, h = int(round(width * scale)), int(round((height(lines) + TAIL) * scale))
     body = int(round(height(lines) * scale))
     img = Image.new("RGBA", (w * SS, h * SS), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
@@ -55,11 +56,20 @@ def bubble(lines, scale):
 
 
 def main():
+    """Each bubble as two ends: the plugin puts a plain blue box between them
+    as wide as the message, so short ones are short (Justin, 2 Nov 2026)."""
     for folder, scale in ((OUT, 1.0), (os.path.join(OUT, "hd"), 2.0 / 3)):
         os.makedirs(folder, exist_ok=True)
+        for old in os.listdir(folder):
+            if old.endswith(".png"):
+                os.remove(os.path.join(folder, old))
         for n in range(1, LINES + 1):
-            bubble(n, scale).save(os.path.join(folder, "bubble_%d.png" % n), optimize=True)
-    print("bubbles written to", OUT)
+            whole = bubble(n, scale, LEFT + 40 + RIGHT)
+            lw, rw = int(round(LEFT * scale)), int(round(RIGHT * scale))
+            whole.crop((0, 0, lw, whole.height)).save(os.path.join(folder, "left_%d.png" % n), optimize=True)
+            whole.crop((whole.width - rw, 0, whole.width, whole.height)).save(
+                os.path.join(folder, "right_%d.png" % n), optimize=True)
+    print("bubble ends written to", OUT)
 
 
 if __name__ == "__main__":

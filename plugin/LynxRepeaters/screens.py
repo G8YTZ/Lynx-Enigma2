@@ -1065,16 +1065,20 @@ def chat_room(entry, listed=()):
 _BUBBLE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bubble")
 CHAT_SLOTS = 3                         # bubbles on screen at once, newest at the bottom
 CHAT_W = 640                           # as tools/make_bubble.py draws them, at Full HD
-BUBBLE = {"pad": 16, "who": 38, "line": 36, "tail": 12, "tip": 14, "lines": 5, "inset": 26}
+BUBBLE = {"pad": 16, "who": 38, "line": 36, "tail": 12, "tip": 14, "lines": 5, "inset": 26,
+          "left": 34, "right": 48, "blue": "#000a84ff"}
 
 
 def _bubble_pixmaps():
-    """The blue bubbles, one per height of 1 to 5 lines; None if missing."""
+    """The bubbles' two ends, (left, right) for 1 to 5 lines; None if missing.
+    A plain blue box between them is as wide as the message."""
     if not MultiPixmap:
         return None
     folder = _BUBBLE_DIR if _factor() > 0.8 else os.path.join(_BUBBLE_DIR, "hd")
-    paths = [os.path.join(folder, "bubble_%d.png" % n) for n in range(1, BUBBLE["lines"] + 1)]
-    return paths if all(os.path.exists(p) for p in paths) else None
+    n = range(1, BUBBLE["lines"] + 1)
+    left = [os.path.join(folder, "left_%d.png" % k) for k in n]
+    right = [os.path.join(folder, "right_%d.png" % k) for k in n]
+    return (left, right) if all(os.path.exists(p) for p in left + right) else None
 
 
 BUBBLE_PIXMAPS = _bubble_pixmaps()
@@ -1082,13 +1086,16 @@ BUBBLE_PIXMAPS = _bubble_pixmaps()
 
 def _chat_skin():
     b, text_w = BUBBLE, CHAT_W - BUBBLE["tip"] - 2 * BUBBLE["inset"]
+    tallest = b["pad"] * 2 + b["who"] + b["line"] * b["lines"] + b["tail"]
     slots = ""
     for i in range(CHAT_SLOTS):
+        slots += '<widget name="mid%d" position="0,0" size="%d,100" zPosition="1" backgroundColor="%s"/>' % (
+            i, CHAT_W, b["blue"])
         if BUBBLE_PIXMAPS:
-            slots += ('<widget name="bg%d" position="0,0" size="%d,%d" zPosition="1" alphatest="blend" pixmaps="%s"/>'
-                      % (i, CHAT_W, b["pad"] * 2 + b["who"] + b["line"] * b["lines"] + b["tail"], ",".join(BUBBLE_PIXMAPS)))
-        else:                          # no pictures: a plain blue box
-            slots += '<widget name="bg%d" position="0,0" size="%d,100" zPosition="1" backgroundColor="#100a84ff"/>' % (i, CHAT_W)
+            slots += ('<widget name="left%d" position="0,0" size="%d,%d" zPosition="1" alphatest="blend" pixmaps="%s"/>'
+                      '<widget name="right%d" position="0,0" size="%d,%d" zPosition="1" alphatest="blend" pixmaps="%s"/>'
+                      % (i, b["left"], tallest, ",".join(BUBBLE_PIXMAPS[0]),
+                         i, b["right"], tallest, ",".join(BUBBLE_PIXMAPS[1])))
         slots += ('<widget name="who%d" position="%d,%d" size="%d,%d" zPosition="2" font="Regular;26" noWrap="1" '
                   'foregroundColor="#00d6e8ff" transparent="1"/>'
                   '<widget name="said%d" position="%d,%d" size="%d,400" zPosition="2" font="Regular;30" '
@@ -1100,8 +1107,8 @@ def _chat_skin():
 
 class ChatBubbles(Screen):
     """New BATC chat messages over the picture in blue bubbles, like texts
-    on a phone: each stays up 10 s (a second more for each line past two),
-    then goes."""
+    on a phone: right-aligned, as wide as the message, each up 10 s (a
+    second more for each line past two), then gone."""
 
     skin = _chat_skin()
     GAP = 12                                         # between bubbles, Full HD pixels
@@ -1110,7 +1117,10 @@ class ChatBubbles(Screen):
         Screen.__init__(self, session)
         import threading
         for i in range(CHAT_SLOTS):
-            self["bg%d" % i] = MultiPixmap() if BUBBLE_PIXMAPS else Label()
+            self["mid%d" % i] = Label()
+            if BUBBLE_PIXMAPS:
+                self["left%d" % i] = MultiPixmap()
+                self["right%d" % i] = MultiPixmap()
             self["who%d" % i] = Label()
             self["said%d" % i] = Label()
         self.lock = threading.Lock()
@@ -1148,6 +1158,10 @@ class ChatBubbles(Screen):
         if changed:
             self._layout()
 
+    def _parts(self, i):
+        names = ["mid", "who", "said"] + (["left", "right"] if BUBBLE_PIXMAPS else [])
+        return [self["%s%d" % (n, i)] for n in names]
+
     def _layout(self):
         from .chat import show_for
         b = BUBBLE
@@ -1156,32 +1170,44 @@ class ChatBubbles(Screen):
         text_w = CHAT_W - b["tip"] - 2 * b["inset"]
         y, now = 0, time.time()
         for i in range(CHAT_SLOTS):
-            parts = [self["bg%d" % i], self["who%d" % i], self["said%d" % i]]
-            if i >= len(self.bubbles) or parts[2].instance is None:
+            parts = self._parts(i)
+            mid, who, said = parts[:3]
+            if i >= len(self.bubbles) or said.instance is None:
                 for w in parts:
                     w.hide()
                 continue
             msg = self.bubbles[i]
-            bg, who, said = parts
+            who.instance.resize(eSize(px(text_w), px(b["who"])))
             who.setText("%s   %s" % (msg[0], msg[2]))
             said.instance.resize(eSize(px(text_w), px(b["line"] * 12)))
             said.setText(msg[1])
-            lines = int(round(said.instance.calculateSize().height() / float(px(b["line"]))))
-            lines = max(1, min(b["lines"], lines))
+            size = said.instance.calculateSize()
+            lines = max(1, min(b["lines"], int(round(size.height() / float(px(b["line"]))))))
             if msg[3] is None:                    # its clock starts when it first shows
                 msg[3] = now + show_for(lines)
-            body = b["pad"] * 2 + b["who"] + b["line"] * lines
+            # As wide as the longer of the name line and the message.
+            text = min(px(text_w), max(size.width(), who.instance.calculateSize().width()) + px(4))
+            body_w = max(text + 2 * px(b["inset"]), px(b["left"] + b["right"] - b["tip"] + 8))
+            body_h = px(b["pad"] * 2 + b["who"] + b["line"] * lines)
+            x = px(CHAT_W - b["tip"]) - body_w          # right-aligned, the tail to its right
             if BUBBLE_PIXMAPS:
-                bg.setPixmapNum(lines - 1)
-            else:
-                bg.instance.resize(eSize(px(CHAT_W), px(body)))
-            bg.instance.move(ePoint(0, px(y)))
-            who.instance.move(ePoint(px(b["inset"]), px(y + b["pad"])))
-            said.instance.move(ePoint(px(b["inset"]), px(y + b["pad"] + b["who"])))
-            said.instance.resize(eSize(px(text_w), px(b["line"] * lines)))
+                left, right = parts[3], parts[4]
+                left.setPixmapNum(lines - 1)
+                right.setPixmapNum(lines - 1)
+                left.instance.move(ePoint(x, px(y)))
+                right.instance.move(ePoint(x + body_w - px(b["right"] - b["tip"]), px(y)))
+                mid.instance.move(ePoint(x + px(b["left"]), px(y)))
+                mid.instance.resize(eSize(body_w - px(b["left"]) - px(b["right"] - b["tip"]), body_h))
+            else:                                     # no pictures: a plain blue box
+                mid.instance.move(ePoint(x, px(y)))
+                mid.instance.resize(eSize(body_w, body_h))
+            who.instance.move(ePoint(x + px(b["inset"]), px(y + b["pad"])))
+            who.instance.resize(eSize(text, px(b["who"])))
+            said.instance.move(ePoint(x + px(b["inset"]), px(y + b["pad"] + b["who"])))
+            said.instance.resize(eSize(text, px(b["line"] * lines)))
             for w in parts:
                 w.show()
-            y += body + b["tail"] + self.GAP
+            y += b["pad"] * 2 + b["who"] + b["line"] * lines + b["tail"] + self.GAP
         if self.bubbles and not self.paused:
             self.show()
         else:
