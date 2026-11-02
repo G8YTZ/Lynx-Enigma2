@@ -134,6 +134,7 @@ The first time, Lynx opens its settings by itself; after that they are on **blue
 | **Player for streams** | Which player plays BATC streams. | **Automatic** (gstplayer, then exteplayer3 on yellow). |
 | **Lynx updates at start-up** | At each start, looks for a newer Lynx. | **Ask before installing**, or **Install by itself** on a box nobody watches. |
 | **PPM audio meter on the Lynx bar (RF only)** | A BBC-style stereo peak programme meter at the left of the Lynx bar while watching on air: red needle left, green right; PPM 4 is -18 dBFS. It disappears on BATC streams, whose sound Lynx cannot reach. | **Yes**, unless you want the bar's text further left. |
+| **BATC chat on the picture** | New messages from the BATC chat of the repeater or stream you are watching, shown as bubbles at the top right of the picture for about 10 s each (read only: nothing is sent, so no login). Not while the Lynx list is open. | **Yes**. |
 
 **Entering your locator:**
 1. With **Your locator** highlighted, press **TEXT** for the on-screen keyboard (easiest), or type straight in with the number keys as on an old phone: press a key repeatedly to step through its letters (**5** for J, **6** three times for O).

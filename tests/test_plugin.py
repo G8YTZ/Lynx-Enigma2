@@ -556,6 +556,28 @@ def test_lnb_power_off():
     assert not lnbpower.apply(True, NM2)                   # an image without 0 V
 
 
+def test_chat():
+    from LynxRepeaters import chat
+    opened = '0{"sid":"abc","upgrades":["websocket"],"pingInterval":25000,"pingTimeout":5000}'
+    text = chat.encode_payload([opened, "40"])
+    assert chat.decode_payload(text) == [opened, "40"]
+    smile = u"42[\"message\",{\"time\":\"2026-11-01T18:35:12.000Z\",\"name\":\"KD6ILO_Mario\",\"message\":\"hi \U0001F600 there\"}]"
+    assert chat.js_len(smile) == len(smile) + 1          # the emoji counts two, as in JavaScript
+    both = chat.decode_payload(chat.encode_payload([smile, "3"]))
+    assert both == [smile, "3"]
+    evs = list(chat.events(both + ['42["history",{"history":[],"nicks":[]}]', "42[bad"]))
+    assert [e[0] for e in evs] == ["message", "history"]
+    name, said, hhmm = chat.message(evs[0][1])
+    assert name == "KD6ILO_Mario" and said.startswith("hi ") and len(hhmm) == 5 and hhmm[2] == ":"
+    assert chat.message({"name": "", "message": "x"}) is None and chat.message("x") is None
+    assert chat.show_for(1) == 10 and chat.show_for(2) == 10 and chat.show_for(4) == 12
+    try:
+        chat.Listener("../etc", lambda *a: None)
+        raise AssertionError("a bad room name was accepted")
+    except ValueError:
+        pass
+
+
 def test_ppm_tap():
     from LynxRepeaters import ppm
     data = {"pids": [(0, "pat"), (0x1000, "pmt"), (0x100, "video"), (0x101, "audio"), (0x102, "audio"),

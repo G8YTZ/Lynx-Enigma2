@@ -85,6 +85,8 @@ cfg.manual_sr = ConfigSelection(default="1500", choices=SR_CHOICES)
 cfg.welcomed = ConfigYesNo(default=False)
 # The PPM audio meter at the left of the Lynx bar, as Lynx Rx and Apple TV.
 cfg.ppm = ConfigYesNo(default=True)
+# BATC's chat for what is playing, as bubbles on the picture (Justin, 2 Nov 2026).
+cfg.chat = ConfigYesNo(default=True)
 
 
 def video_signs(session):
@@ -478,6 +480,10 @@ class RepeaterList(Screen):
         self.diag_timer, self._dt = _timer(self._diag)
         self.onClose.append(self.diag_timer.stop)
         self.bar = None                   # the Lynx bar while it is open
+        self.chat = ChatOverlay(session)  # BATC chat bubbles for what is playing
+        self.onClose.append(self.chat.close)
+        self.onShown.append(lambda: self.chat.dialog.pause(True))
+        self.onHide.append(lambda: self.chat.dialog.pause(False))
         self.idle_timer, self._it = _timer(self._idle)
         self.hidden = False
         # While the list is hidden over a channel Lynx does not know, any of
@@ -692,6 +698,7 @@ class RepeaterList(Screen):
             self.bar.meter.stop()
         stop_stray_meters()
         self.watching = None
+        self.chat.follow(None)
         self.tuning = e
         self["key_red"].setText(_("Stop"))
         self.tuner.tune(e, cfg.supply.value, hunt)
@@ -712,6 +719,7 @@ class RepeaterList(Screen):
         """Open the Lynx bar, or move the open one on to what now plays."""
         self.watching = watching
         self._red()
+        self.chat.follow(chat_room(watching))
         if self.bar:
             self.bar.set_entry(watching)
         else:
@@ -1043,6 +1051,155 @@ BAR_SKIN = _bar_skin(False)
 BAR_SKIN_PPM = _bar_skin(True) if PPM_PIXMAPS else BAR_SKIN
 
 
+def chat_room(entry):
+    """The BATC stream whose chat goes with what is watched, or None."""
+    s = (entry or {}).get("stream")
+    return s.get("key") if isinstance(s, dict) else None
+
+
+def _rounded():
+    """cornerRadius only where this image's skin reader knows it (OpenATV 7
+    and later); an attribute it does not know would stop the screen."""
+    try:
+        import skin
+        return hasattr(skin.AttributeParser, "cornerRadius")
+    except Exception:
+        return False
+
+
+CHAT_SLOTS = 3                         # bubbles on screen at once, newest at the bottom
+CHAT_W = 640
+
+
+def _chat_skin():
+    radius = ' cornerRadius="24"' if _rounded() else ""
+    slots = ""
+    for i in range(CHAT_SLOTS):
+        slots += ('<widget name="bg%d" position="0,0" size="%d,100" zPosition="1" backgroundColor="#30202830"%s/>'
+                  '<widget name="who%d" position="24,16" size="%d,36" zPosition="2" font="Regular;26" noWrap="1" '
+                  'foregroundColor="#00ffd200" transparent="1"/>'
+                  '<widget name="said%d" position="24,54" size="%d,400" zPosition="2" font="Regular;30" '
+                  'foregroundColor="#00ffffff" transparent="1"/>') % (i, CHAT_W, radius, i, CHAT_W - 48, i, CHAT_W - 48)
+    return _scale('<screen name="LynxChat" position="1240,40" size="%d,760" zPosition="5" flags="wfNoBorder" '
+                  'backgroundColor="#ff000000">%s</screen>' % (CHAT_W, slots))
+
+
+class ChatBubbles(Screen):
+    """New BATC chat messages over the picture, like texts on a phone: each
+    stays up 10 s (a second more for each line past two), then goes."""
+
+    skin = _chat_skin()
+    PAD, WHO_H, GAP, MAX_SAID = 16, 38, 14, 190      # Full HD pixels
+
+    def __init__(self, session):
+        Screen.__init__(self, session)
+        import threading
+        for i in range(CHAT_SLOTS):
+            self["bg%d" % i] = Label()
+            self["who%d" % i] = Label()
+            self["said%d" % i] = Label()
+        self.lock = threading.Lock()
+        self.incoming, self.shown = [], []           # shown: [name, text, hhmm, until]
+        self.paused = False                          # the Lynx list is up: no bubbles over it
+        self.timer, self._t = _timer(self._tick)
+        self.onClose.append(self.timer.stop)
+        self.timer.start(500, False)
+
+    def heard(self, name, text, hhmm):
+        """From the chat listener's thread: handed over on the next tick."""
+        with self.lock:
+            self.incoming.append((name, text, hhmm))
+
+    def clear(self):
+        with self.lock:
+            self.incoming = []
+        self.shown = []
+        self._layout()
+
+    def _tick(self):
+        with self.lock:
+            new, self.incoming = self.incoming, []
+        now = time.time()
+        changed = bool(new)
+        for name, text, hhmm in new:
+            self.shown.append([name, text, hhmm, None])
+        if len(self.shown) > CHAT_SLOTS:
+            self.shown = self.shown[-CHAT_SLOTS:]
+        keep = [b for b in self.shown if b[3] is None or b[3] > now]
+        if len(keep) != len(self.shown):
+            self.shown, changed = keep, True
+        if changed:
+            self._layout()
+
+    def _layout(self):
+        from .chat import show_for
+        f = _factor()
+        px = lambda v: int(round(v * f))
+        y, now = 0, time.time()
+        for i in range(CHAT_SLOTS):
+            parts = [self["bg%d" % i], self["who%d" % i], self["said%d" % i]]
+            if i >= len(self.shown) or parts[0].instance is None:
+                for w in parts:
+                    w.hide()
+                continue
+            b = self.shown[i]
+            bg, who, said = parts
+            who.setText("%s   %s" % (b[0], b[2]))
+            said.instance.resize(eSize(px(CHAT_W - 2 * 24), px(400)))
+            said.setText(b[1])
+            h = min(said.instance.calculateSize().height(), px(self.MAX_SAID))
+            if b[3] is None:                  # its clock starts when it first shows
+                b[3] = now + show_for(max(1, int(round(h / (px(30) * 1.2)))))
+            total = px(self.PAD) + px(self.WHO_H) + h + px(self.PAD)
+            bg.instance.move(ePoint(0, y))
+            bg.instance.resize(eSize(px(CHAT_W), total))
+            who.instance.move(ePoint(px(24), y + px(self.PAD)))
+            said.instance.move(ePoint(px(24), y + px(self.PAD) + px(self.WHO_H)))
+            said.instance.resize(eSize(px(CHAT_W - 2 * 24), h))
+            for w in parts:
+                w.show()
+            y += total + px(self.GAP)
+        if self.shown and not self.paused:
+            self.show()
+        else:
+            self.hide()
+
+    def pause(self, paused):
+        self.paused = paused
+        self._layout()
+
+
+class ChatOverlay(object):
+    """The bubbles and the listener for the stream being watched."""
+
+    def __init__(self, session):
+        self.session, self.room, self.listener = session, None, None
+        self.dialog = session.instantiateDialog(ChatBubbles)
+
+    def follow(self, room):
+        if not cfg.chat.value:
+            room = None
+        if room == self.room:
+            return
+        if self.listener:
+            self.listener.stop()
+            self.listener = None
+        self.room = room
+        self.dialog.clear()
+        if room:
+            from .chat import Listener
+            try:
+                self.listener = Listener(room, self.dialog.heard, log)
+                self.listener.start()
+            except ValueError:
+                self.listener = None
+
+    def close(self):
+        self.follow(None)
+        self.dialog.hide()
+        self.session.deleteDialog(self.dialog)
+
+
 class LynxBar(Screen):
     skin = BAR_SKIN
 
@@ -1298,6 +1455,7 @@ class LynxSettings(ConfigListScreen, Screen):
             getConfigListEntry(_("Player for streams"), cfg.player),
             getConfigListEntry(_("Lynx updates at start-up"), cfg.update_check),
             getConfigListEntry(_("PPM audio meter on the Lynx bar (RF only)"), cfg.ppm),
+            getConfigListEntry(_("BATC chat on the picture"), cfg.chat),
         ]
         ConfigListScreen.__init__(self, items, session=session)
         if welcome:
