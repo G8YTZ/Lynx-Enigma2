@@ -24,7 +24,7 @@ import re
 import sys
 import time
 
-from enigma import eServiceReference, getDesktop
+from enigma import ePoint, eServiceReference, eSize, getDesktop
 
 from Components.ActionMap import ActionMap
 from Components.ConfigList import ConfigListScreen
@@ -1086,7 +1086,7 @@ class LynxBar(Screen):
             self.eye_timer, self._et = _timer(self._eye)
             self.onClose.append(self.eye_timer.stop)
         # The PPM: needles at rest until the sound is metered.
-        self.meter, self.ppm_shown = None, (None, None)
+        self.meter, self.ppm_shown, self.ppm_on = None, (None, None), True
         if self.with_ppm:
             from Components.Pixmap import Pixmap
             self["ppm_housing"] = Pixmap()          # bottom to top, in this order
@@ -1179,6 +1179,24 @@ class LynxBar(Screen):
             plan = None
         return ("tap", plan, url) if plan else ("url", url)
 
+    def _show_ppm(self, show):
+        """Shows or hides the PPM, sliding the text along to match the
+        skin's layout with or without it."""
+        if show == self.ppm_on or self["call"].instance is None:
+            return
+        self.ppm_on = show
+        for name in ("ppm_housing", "ppm_green", "ppm_red", "ppm_screw"):
+            if show:
+                self[name].show()
+            else:
+                self[name].hide()
+        x, f = (150 if show else 40), _factor()
+        for name, left, width in (("call", x, 420), ("where", x + 430, 1140 - (x + 430)), ("tech", x, 1240 - x)):
+            inst = self[name].instance
+            if inst is not None:
+                inst.move(ePoint(int(round(left * f)), inst.position().y()))
+                inst.resize(eSize(int(round(width * f)), inst.size().height()))
+
     def _ppm(self):
         if not self.visible:
             return
@@ -1194,6 +1212,9 @@ class LynxBar(Screen):
         # Live values every second: what was actually locked and decoded,
         # never the list's idea of FEC or codec.
         if self.meter:
+            # Streams cannot be metered (no copy of their sound to take), so
+            # the meter goes and the text closes up (Justin, 2 Nov 2026).
+            self._show_ppm(not self.entry.get("via_stream"))
             url = self._ppm_source()
             if url:
                 self.meter.start(url)
