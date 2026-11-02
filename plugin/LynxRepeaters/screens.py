@@ -1195,9 +1195,12 @@ class ChatBubbles(Screen):
 class ChatOverlay(object):
     """The bubbles and the listener for the stream being watched."""
 
+    START_MS = 6000                    # let the picture start first (Justin: streams were slower to start)
+
     def __init__(self, session):
         self.session, self.room, self.listener = session, None, None
         self.dialog = session.instantiateDialog(ChatBubbles)
+        self.later, self._l = _timer(self._start)
 
     def follow(self, room):
         if not cfg.chat.value:
@@ -1207,17 +1210,24 @@ class ChatOverlay(object):
         if self.listener:
             self.listener.stop()
             self.listener = None
+        self.later.stop()
         self.room = room
         self.dialog.clear()
         if room:
-            from .chat import Listener
-            try:
-                self.listener = Listener(room, self.dialog.heard, log)
-                self.listener.start()
-            except ValueError:
-                self.listener = None
+            self.later.start(self.START_MS, True)
+
+    def _start(self):
+        if not self.room or self.listener:
+            return
+        from .chat import Listener
+        try:
+            self.listener = Listener(self.room, self.dialog.heard, log)
+            self.listener.start()
+        except ValueError:
+            self.listener = None
 
     def close(self):
+        self.later.stop()
         self.follow(None)
         self.dialog.hide()
         self.session.deleteDialog(self.dialog)

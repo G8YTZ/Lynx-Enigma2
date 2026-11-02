@@ -57,8 +57,24 @@ def js_len(text):
     return sum(2 if ord(c) > 0xFFFF else 1 for c in text)
 
 
+_ASTRAL = re.compile(u"[\U00010000-\U0010FFFF]") if len(u"\U00010000") == 1 else None
+
+
 def decode_payload(text):
-    """Engine.IO 3 text payload, "<n>:<packet><n>:<packet>...", to packets."""
+    """Engine.IO 3 text payload, "<n>:<packet><n>:<packet>...", to packets.
+    Without emoji the lengths are plain character counts, so the packets
+    are cut by slicing: the chat history on joining can be long, and a loop
+    over every character keeps the box's GUI waiting (2 Nov 2026)."""
+    if _ASTRAL is None or not _ASTRAL.search(text):
+        out, i = [], 0
+        while i < len(text):
+            colon = text.find(":", i)
+            if colon < 0 or not text[i:colon].isdigit():
+                break
+            n = int(text[i:colon])
+            out.append(text[colon + 1:colon + 1 + n])
+            i = colon + 1 + n
+        return out
     out, i = [], 0
     while i < len(text):
         colon = text.find(":", i)
