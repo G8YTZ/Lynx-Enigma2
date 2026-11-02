@@ -422,15 +422,20 @@ PANEL = "#00141414"
 GREY = 0x808080
 WHITE = 0xffffff
 
+# Every named widget has zPosition 1. Enigma2 creates a skin's plain
+# eLabels and ePixmaps after all its named widgets, so at the same height a
+# background box covers the text on it: the list's right-hand panel was
+# empty and its title bars' text hidden (Justin, 2 Nov 2026; the same cause
+# as the PPM needles, 1 Nov).
 BUTTONS = """
   <eLabel position="40,{y}" size="8,44" backgroundColor="#00d0021b"/>
-  <widget source="key_red" render="Label" position="56,{y}" size="300,44" font="Regular;30" valign="center" transparent="1"/>
+  <widget zPosition="1" source="key_red" render="Label" position="56,{y}" size="300,44" font="Regular;30" valign="center" transparent="1"/>
   <eLabel position="400,{y}" size="8,44" backgroundColor="#0000a03c"/>
-  <widget source="key_green" render="Label" position="416,{y}" size="300,44" font="Regular;30" valign="center" transparent="1"/>
+  <widget zPosition="1" source="key_green" render="Label" position="416,{y}" size="300,44" font="Regular;30" valign="center" transparent="1"/>
   <eLabel position="760,{y}" size="8,44" backgroundColor="#00e6b800"/>
-  <widget source="key_yellow" render="Label" position="776,{y}" size="400,44" font="Regular;30" valign="center" transparent="1"/>
+  <widget zPosition="1" source="key_yellow" render="Label" position="776,{y}" size="400,44" font="Regular;30" valign="center" transparent="1"/>
   <eLabel position="1220,{y}" size="8,44" backgroundColor="#000060d0"/>
-  <widget source="key_blue" render="Label" position="1236,{y}" size="200,44" font="Regular;30" valign="center" transparent="1"/>
+  <widget zPosition="1" source="key_blue" render="Label" position="1236,{y}" size="200,44" font="Regular;30" valign="center" transparent="1"/>
   <eLabel text="0  Update streams    MENU  More" position="1400,{y}" size="330,44" font="Regular;26" halign="right" valign="center" foregroundColor="#00c0c0c0" transparent="1"/>
 """
 
@@ -441,8 +446,8 @@ class RepeaterList(Screen):
   <eLabel position="0,0" size="1760,90" backgroundColor="#00d0021b"/>
   <eLabel text="LYNX" position="40,0" size="200,90" font="Regular;54" valign="center" foregroundColor="#00ffffff" backgroundColor="#00d0021b"/>
   <eLabel text="UK ATV Repeaters" position="240,0" size="700,90" font="Regular;40" valign="center" foregroundColor="#00ffffff" backgroundColor="#00d0021b"/>
-  <widget name="where" position="940,0" size="790,90" font="Regular;30" halign="right" valign="center" foregroundColor="#00ffffff" backgroundColor="#00d0021b"/>
-  <widget source="list" render="Listbox" position="30,110" size="1080,690" scrollbarMode="showOnDemand" backgroundColor="#00141414" backgroundColorSelected="#00d0021b" transparent="0">
+  <widget zPosition="1" name="where" position="940,0" size="790,90" font="Regular;30" halign="right" valign="center" foregroundColor="#00ffffff" backgroundColor="#00d0021b"/>
+  <widget zPosition="1" source="list" render="Listbox" position="30,110" size="1080,690" scrollbarMode="showOnDemand" backgroundColor="#00141414" backgroundColorSelected="#00d0021b" transparent="0">
     <convert type="TemplatedMultiContent">
       {"template": [
         MultiContentEntryText(pos=(12,0), size=(160,46), font=0, flags=RT_HALIGN_LEFT|RT_VALIGN_CENTER, text=1, color=0xFF000006, color_sel=0xFFFFFF),
@@ -456,10 +461,10 @@ class RepeaterList(Screen):
     </convert>
   </widget>
   <eLabel position="1130,110" size="600,690" backgroundColor="#00222222"/>
-  <widget name="call" position="1160,125" size="560,70" font="Regular;54" foregroundColor="#00ffffff" backgroundColor="#00222222"/>
-  <widget name="live" position="1160,200" size="550,44" font="Regular;30" valign="center" foregroundColor="#00ffd200" backgroundColor="#00222222"/>
-  <widget name="details" position="1160,250" size="550,535" font="Regular;28" foregroundColor="#00e0e0e0" backgroundColor="#00222222"/>
-  <widget name="status" position="30,815" size="1700,50" font="Regular;30" valign="center" foregroundColor="#00ffd200" backgroundColor="#00141414"/>
+  <widget zPosition="1" name="call" position="1160,125" size="560,70" font="Regular;54" foregroundColor="#00ffffff" backgroundColor="#00222222"/>
+  <widget zPosition="1" name="live" position="1160,200" size="550,44" font="Regular;30" valign="center" foregroundColor="#00ffd200" backgroundColor="#00222222"/>
+  <widget zPosition="1" name="details" position="1160,250" size="550,535" font="Regular;28" foregroundColor="#00e0e0e0" backgroundColor="#00222222"/>
+  <widget zPosition="1" name="status" position="30,815" size="1700,50" font="Regular;30" valign="center" foregroundColor="#00ffd200" backgroundColor="#00141414"/>
 """ + BUTTONS.format(y=880) + """
 </screen>""")
 
@@ -1013,23 +1018,23 @@ def _bar_skin(with_ppm):
         # the order the screen adds them, and plain ePixmaps after all of
         # them, on top (Screen.createGUIScreen). As ePixmaps the housing and
         # screw hid the needles (1 Nov 2026).
-        ppm = ('<widget name="ppm_housing" position="24,10" size="110,110" alphatest="blend" pixmap="%s"/>'
-               '<widget name="ppm_green" position="24,10" size="110,110" alphatest="blend" pixmaps="%s"/>'
-               '<widget name="ppm_red" position="24,10" size="110,110" alphatest="blend" pixmaps="%s"/>'
-               '<widget name="ppm_screw" position="24,10" size="110,110" alphatest="blend" pixmap="%s"/>' % (
+        ppm = ('<widget zPosition="1" name="ppm_housing" position="24,10" size="110,110" alphatest="blend" pixmap="%s"/>'
+               '<widget zPosition="1" name="ppm_green" position="24,10" size="110,110" alphatest="blend" pixmaps="%s"/>'
+               '<widget zPosition="1" name="ppm_red" position="24,10" size="110,110" alphatest="blend" pixmaps="%s"/>'
+               '<widget zPosition="1" name="ppm_screw" position="24,10" size="110,110" alphatest="blend" pixmap="%s"/>' % (
                    PPM_PIXMAPS["housing"], ",".join(PPM_PIXMAPS["green"]), ",".join(PPM_PIXMAPS["red"]),
                    PPM_PIXMAPS["screw"]))
     return _scale("""
 <screen name="LynxBar" position="60,930" size="1800,130" backgroundColor="#00141414" flags="wfNoBorder">
   <eLabel position="0,0" size="12,130" backgroundColor="#00d0021b"/>
 """ + ppm + """
-  <widget name="call" position="%d,8" size="420,70" font="Regular;54" noWrap="1" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
-  <widget name="where" position="%d,8" size="%d,70" font="Regular;36" valign="center" noWrap="1" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
-  <widget name="signal" position="1140,8" size="510,70" font="Regular;36" halign="right" valign="center" foregroundColor="#00ffd200" backgroundColor="#00141414"/>
-  <widget name="tech" position="%d,78" size="%d,44" font="Regular;28" valign="center" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
-  <widget name="hint" position="1240,78" size="410,44" font="Regular;20" halign="right" valign="center" foregroundColor="#00909090" backgroundColor="#00141414"/>
+  <widget zPosition="1" name="call" position="%d,8" size="420,70" font="Regular;54" noWrap="1" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
+  <widget zPosition="1" name="where" position="%d,8" size="%d,70" font="Regular;36" valign="center" noWrap="1" foregroundColor="#00ffffff" backgroundColor="#00141414"/>
+  <widget zPosition="1" name="signal" position="1140,8" size="510,70" font="Regular;36" halign="right" valign="center" foregroundColor="#00ffd200" backgroundColor="#00141414"/>
+  <widget zPosition="1" name="tech" position="%d,78" size="%d,44" font="Regular;28" valign="center" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
+  <widget zPosition="1" name="hint" position="1240,78" size="410,44" font="Regular;20" halign="right" valign="center" foregroundColor="#00909090" backgroundColor="#00141414"/>
 """ % (x, x + 430, 1140 - (x + 430), x, 1240 - x) + (
-        '<widget name="eye" position="1670,10" size="110,110" alphatest="blend" pixmaps="%s"/>' % ",".join(EYE_PIXMAPS)
+        '<widget zPosition="1" name="eye" position="1670,10" size="110,110" alphatest="blend" pixmaps="%s"/>' % ",".join(EYE_PIXMAPS)
         if EYE_PIXMAPS else "") + """
 </screen>""")
 
@@ -1270,12 +1275,12 @@ class LynxSettings(ConfigListScreen, Screen):
 <screen name="LynxSettings" position="center,center" size="1300,780" title="Lynx settings" backgroundColor="#00141414" flags="wfNoBorder">
   <eLabel position="0,0" size="1300,90" backgroundColor="#00d0021b"/>
   <eLabel text="Lynx settings" position="40,0" size="1200,90" font="Regular;40" valign="center" foregroundColor="#00ffffff" backgroundColor="#00d0021b"/>
-  <widget name="config" position="30,110" size="1240,450" font="Regular;30" itemHeight="50" scrollbarMode="showOnDemand" backgroundColor="#00141414"/>
-  <widget name="help" position="40,575" size="1220,110" font="Regular;26" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
+  <widget zPosition="1" name="config" position="30,110" size="1240,450" font="Regular;30" itemHeight="50" scrollbarMode="showOnDemand" backgroundColor="#00141414"/>
+  <widget zPosition="1" name="help" position="40,575" size="1220,110" font="Regular;26" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
   <eLabel position="40,710" size="8,44" backgroundColor="#00d0021b"/>
-  <widget source="key_red" render="Label" position="56,710" size="300,44" font="Regular;30" valign="center" transparent="1"/>
+  <widget zPosition="1" source="key_red" render="Label" position="56,710" size="300,44" font="Regular;30" valign="center" transparent="1"/>
   <eLabel position="400,710" size="8,44" backgroundColor="#0000a03c"/>
-  <widget source="key_green" render="Label" position="416,710" size="300,44" font="Regular;30" valign="center" transparent="1"/>
+  <widget zPosition="1" source="key_green" render="Label" position="416,710" size="300,44" font="Regular;30" valign="center" transparent="1"/>
 </screen>""")
 
     def __init__(self, session, welcome=False):
@@ -1345,15 +1350,15 @@ class ManualTune(ConfigListScreen, Screen):
     skin = _scale("""
 <screen name="LynxManualTune" position="center,center" size="1300,560" title="Tune by hand" backgroundColor="#00141414" flags="wfNoBorder">
   <eLabel position="0,0" size="1300,90" backgroundColor="#00d0021b"/>
-  <widget name="title" position="40,0" size="1200,90" font="Regular;40" valign="center" foregroundColor="#00ffffff" backgroundColor="#00d0021b"/>
-  <widget name="config" position="30,110" size="1240,160" font="Regular;30" itemHeight="50" scrollbarMode="showOnDemand" backgroundColor="#00141414"/>
-  <widget name="help" position="40,290" size="1220,180" font="Regular;26" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
+  <widget zPosition="1" name="title" position="40,0" size="1200,90" font="Regular;40" valign="center" foregroundColor="#00ffffff" backgroundColor="#00d0021b"/>
+  <widget zPosition="1" name="config" position="30,110" size="1240,160" font="Regular;30" itemHeight="50" scrollbarMode="showOnDemand" backgroundColor="#00141414"/>
+  <widget zPosition="1" name="help" position="40,290" size="1220,180" font="Regular;26" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
   <eLabel position="40,490" size="8,44" backgroundColor="#00d0021b"/>
-  <widget source="key_red" render="Label" position="56,490" size="300,44" font="Regular;30" valign="center" transparent="1"/>
+  <widget zPosition="1" source="key_red" render="Label" position="56,490" size="300,44" font="Regular;30" valign="center" transparent="1"/>
   <eLabel position="400,490" size="8,44" backgroundColor="#0000a03c"/>
-  <widget source="key_green" render="Label" position="416,490" size="300,44" font="Regular;30" valign="center" transparent="1"/>
+  <widget zPosition="1" source="key_green" render="Label" position="416,490" size="300,44" font="Regular;30" valign="center" transparent="1"/>
   <eLabel position="760,490" size="8,44" backgroundColor="#00e6b800"/>
-  <widget source="key_yellow" render="Label" position="776,490" size="400,44" font="Regular;30" valign="center" transparent="1"/>
+  <widget zPosition="1" source="key_yellow" render="Label" position="776,490" size="400,44" font="Regular;30" valign="center" transparent="1"/>
 </screen>""")
 
     def __init__(self, session, preset=None):
@@ -1442,13 +1447,13 @@ class AddStream(ConfigListScreen, Screen):
     skin = _scale("""
 <screen name="LynxAddStream" position="center,center" size="1300,520" title="Add a BATC stream" backgroundColor="#00141414" flags="wfNoBorder">
   <eLabel position="0,0" size="1300,90" backgroundColor="#00d0021b"/>
-  <widget name="title" position="40,0" size="1200,90" font="Regular;40" valign="center" foregroundColor="#00ffffff" backgroundColor="#00d0021b"/>
-  <widget name="config" position="30,110" size="1240,110" font="Regular;30" itemHeight="50" scrollbarMode="showOnDemand" backgroundColor="#00141414"/>
-  <widget name="help" position="40,240" size="1220,190" font="Regular;26" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
+  <widget zPosition="1" name="title" position="40,0" size="1200,90" font="Regular;40" valign="center" foregroundColor="#00ffffff" backgroundColor="#00d0021b"/>
+  <widget zPosition="1" name="config" position="30,110" size="1240,110" font="Regular;30" itemHeight="50" scrollbarMode="showOnDemand" backgroundColor="#00141414"/>
+  <widget zPosition="1" name="help" position="40,240" size="1220,190" font="Regular;26" foregroundColor="#00c0c0c0" backgroundColor="#00141414"/>
   <eLabel position="40,450" size="8,44" backgroundColor="#00d0021b"/>
-  <widget source="key_red" render="Label" position="56,450" size="300,44" font="Regular;30" valign="center" transparent="1"/>
+  <widget zPosition="1" source="key_red" render="Label" position="56,450" size="300,44" font="Regular;30" valign="center" transparent="1"/>
   <eLabel position="400,450" size="8,44" backgroundColor="#0000a03c"/>
-  <widget source="key_green" render="Label" position="416,450" size="300,44" font="Regular;30" valign="center" transparent="1"/>
+  <widget zPosition="1" source="key_green" render="Label" position="416,450" size="300,44" font="Regular;30" valign="center" transparent="1"/>
 </screen>""")
 
     def __init__(self, session, preset=None):
