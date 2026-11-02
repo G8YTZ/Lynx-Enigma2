@@ -86,6 +86,16 @@ On a multiboot box such as the H11S, OpenATV 8 goes in a spare slot, so the imag
 
 **Menu, Setup, Tuner Configuration, Tuner A** should show **Simple**, **Single** and the Astra 19.2°E option; set it and save if not. The wizard can leave tuner A "not configured", and Lynx cannot tune anything until it is set (it says so). Nothing else needs changing for 23 cm; Lynx works out the frequencies.
 
+### Step 5: Full HD menus (recommended)
+
+OpenATV's MetrixHD skin draws its menus at 1280x720 out of the box, so the Lynx bar, the magic eye and the PPM look soft on a big screen. Switch it to Full HD:
+
+1. **Menu, Plugins, MyMetrixLite** (MetrixHD's own settings), then **Other settings**.
+2. Set **EHD** (Enhanced HD) to **Full HD**. Leave "advanced picon scaling" at No.
+3. Press **green**. MetrixHD rebuilds its pictures, which takes a few minutes.
+
+Our box sat on "Processing" for over an hour although the job was long done. If that happens, restart the GUI (Menu, Standby / Restart, Restart GUI, or over SSH `wget -qO- "http://127.0.0.1/api/powerstate?newstate=3"`). To check it worked: `cat /sys/class/graphics/fb0/virtual_size` on the box should say `1920,2160` (it says `1280,1440` at 720).
+
 ## 2. Installing Lynx
 
 Lynx installs from the box itself, over the network. It goes into the image you are running: each slot is a separate system, so Lynx installed in the old image is not in OpenATV 8.
