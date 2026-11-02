@@ -1292,7 +1292,7 @@ class LynxSettings(ConfigListScreen, Screen):
             getConfigListEntry(_("Every BATC stream in the list, not only repeaters"), cfg.all_streams),
             getConfigListEntry(_("Player for streams"), cfg.player),
             getConfigListEntry(_("Lynx updates at start-up"), cfg.update_check),
-            getConfigListEntry(_("PPM audio meter on the Lynx bar"), cfg.ppm),
+            getConfigListEntry(_("PPM audio meter on the Lynx bar (RF only)"), cfg.ppm),
         ]
         ConfigListScreen.__init__(self, items, session=session)
         if welcome:
