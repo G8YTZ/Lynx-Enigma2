@@ -110,6 +110,19 @@ def video_signs(session):
     return out
 
 
+def decoder_has_picture(signs):
+    """From video_signs(): whether the box's video decoder has a picture.
+    The player's own size is not enough: on a start with sound but no
+    picture (2 Nov 2026) gstplayer said 1920x1080 while the decoder still
+    said ffffffff; on every good start the decoder had a real size within
+    about 6 s."""
+    try:
+        x = int(str(signs.get("vmpeg.xres", "")), 16)
+    except ValueError:
+        return False
+    return 0 < x < 0xffffffff
+
+
 def lnb_osc():
     return {"23cm": 0, "9cm": cfg.osc_9cm.value, "3cm": cfg.osc_3cm.value}
 
@@ -417,7 +430,9 @@ CHILD_CLOSED_GRACE_S = 0.6
 LIST_IDLE_MS = 10000
 
 # Seconds of video diagnostics logged at the start of each stream.
-STREAM_DIAG_S = 10
+STREAM_DIAG_S = 12
+STREAM_PICTURE_FROM_S = 3              # earlier readings may be the last programme's
+STREAM_PICTURE_BY_S = 12               # good starts had a picture by about 6 s
 
 RED = "#00d0021b"
 PANEL = "#00141414"
@@ -870,13 +885,13 @@ class RepeaterList(Screen):
         self.stream_entry = e
         self.players = streams.player_chain(cfg.player.value)
         self.player_i = 0
+        self.auto_retried = False          # Lynx's own second try, once per stream
         self._play_stream()
 
-    # gstplayer shows the picture but reports no picture size (20 Oct 2026),
-    # so Lynx cannot tell by itself when a player has failed. The stream
-    # stays on the first player; yellow on the Lynx bar swaps players. For
-    # the first 10 s Lynx logs every sign of video, to find a test it could
-    # use to swap by itself.
+    # Yellow on the Lynx bar swaps players by hand. Lynx also does it once by
+    # itself when the box's video decoder still has no picture 12 s into a
+    # stream (decoder_has_picture(): the test found in the 2 Nov 2026 log),
+    # and logs every sign of video meanwhile.
 
     def _play_stream(self):
         e = self.stream_entry
@@ -897,8 +912,24 @@ class RepeaterList(Screen):
         self._play_stream()
 
     def _diag(self):
-        log("video check %s: %s" % (self.stype, video_signs(self.session)))
+        signs = video_signs(self.session)
+        log("video check %s: %s" % (self.stype, signs))
         self.diag_left -= 1
+        seconds = STREAM_DIAG_S - self.diag_left
+        # The first readings can still hold the last programme's size.
+        if seconds >= STREAM_PICTURE_FROM_S and decoder_has_picture(signs):
+            return
+        if seconds >= STREAM_PICTURE_BY_S:
+            if not getattr(self, "auto_retried", True) and self.watching and self.watching.get("via_stream"):
+                # Sound but no picture: the player joined between keyframes.
+                # What yellow does by hand, done once by itself (Justin, 2 Nov 2026).
+                self.auto_retried = True
+                log("stream: no picture after %d s on %s; trying again" % (seconds, self.stype))
+                if len(self.players) > 1:
+                    self.player_i = (self.player_i + 1) % len(self.players)
+                self._play_stream()
+                self._say(_("No picture yet: trying again"))
+            return
         if self.diag_left > 0:
             self.diag_timer.start(1000, True)
 
