@@ -1161,6 +1161,13 @@ def _bubble_pixmaps():
 BUBBLE_PIXMAPS = _bubble_pixmaps()
 
 
+def _bubble_lines(height, line):
+    """Lines of text in a message 'height' pixels tall: rounded up (a part
+    line is still a line to show), 1 to the tallest bubble."""
+    import math
+    return max(1, min(BUBBLE["lines"], int(math.ceil(height / float(line) - 0.3))))
+
+
 def _chat_skin():
     b, text_w = BUBBLE, CHAT_W - BUBBLE["tip"] - 2 * BUBBLE["inset"]
     tallest = b["pad"] * 2 + b["who"] + b["line"] * b["lines"] + b["tail"]
@@ -1267,11 +1274,16 @@ class ChatBubbles(Screen):
                 msg[1] = body.rsplit(" ", 1)[0].rstrip(".,;:") + "..."
                 said.setText(msg[1])
                 size = said.instance.calculateSize()
-            lines = max(1, min(b["lines"], int(round(size.height() / float(px(b["line"]))))))
+            lines = _bubble_lines(size.height(), px(b["line"]))
             if msg[3] is None:                    # its clock starts when it first shows
                 msg[3] = now + show_for(lines)
-            # As wide as the longer of the name line and the message.
+            # As wide as the longer of the name line and the message; a message
+            # of more than one line keeps the full width, as a narrower box
+            # wraps it onto more lines than were counted (Justin, 2 Nov 2026:
+            # "not scaling past 3 lines").
             text = min(px(text_w), max(size.width(), who.instance.calculateSize().width()) + px(4))
+            if lines > 1:
+                text = px(text_w)
             body_w = max(text + 2 * px(b["inset"]), px(b["left"] + b["right"] - b["tip"] + 8))
             body_h = px(b["pad"] * 2 + b["who"] + b["line"] * lines)
             x = px(CHAT_W - b["tip"]) - body_w          # right-aligned, the tail to its right
@@ -1312,7 +1324,7 @@ class ChatBubbles(Screen):
                 said.instance.resize(eSize(px(text_w), px(b["line"] * 30)))
                 said.setText(msg[1])
                 h = said.instance.calculateSize().height()
-                lines = max(1, min(b["lines"], int(round(h / float(px(b["line"]))))))
+                lines = _bubble_lines(h, px(b["line"]))
                 total += b["pad"] * 2 + b["who"] + b["line"] * lines + b["tail"] + self.GAP
             if total - self.GAP <= self.TALL:
                 return
