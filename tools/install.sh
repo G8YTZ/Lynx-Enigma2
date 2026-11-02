@@ -68,6 +68,8 @@ rm -rf "$DEST/eye"
 cp -R "$SRC/eye" "$DEST/"
 rm -rf "$DEST/ppm"
 cp -R "$SRC/ppm" "$DEST/"
+rm -rf "$DEST/bubble"
+cp -R "$SRC/bubble" "$DEST/"
 cp "$TOP/data/repeaters.json" "$DEST/"
 if [ -n "$SHA" ]; then
     echo "$SHA" > "$DEST/version.txt"

@@ -1062,49 +1062,61 @@ def chat_room(entry, listed=()):
     return s.get("key") if isinstance(s, dict) else None
 
 
-def _rounded():
-    """cornerRadius only where this image's skin reader knows it (OpenATV 7
-    and later); an attribute it does not know would stop the screen."""
-    try:
-        import skin
-        return hasattr(skin.AttributeParser, "cornerRadius")
-    except Exception:
-        return False
-
-
+_BUBBLE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bubble")
 CHAT_SLOTS = 3                         # bubbles on screen at once, newest at the bottom
-CHAT_W = 640
+CHAT_W = 640                           # as tools/make_bubble.py draws them, at Full HD
+BUBBLE = {"pad": 16, "who": 38, "line": 36, "tail": 12, "tip": 14, "lines": 5, "inset": 26}
+
+
+def _bubble_pixmaps():
+    """The blue bubbles, one per height of 1 to 5 lines; None if missing."""
+    if not MultiPixmap:
+        return None
+    folder = _BUBBLE_DIR if _factor() > 0.8 else os.path.join(_BUBBLE_DIR, "hd")
+    paths = [os.path.join(folder, "bubble_%d.png" % n) for n in range(1, BUBBLE["lines"] + 1)]
+    return paths if all(os.path.exists(p) for p in paths) else None
+
+
+BUBBLE_PIXMAPS = _bubble_pixmaps()
 
 
 def _chat_skin():
-    radius = ' cornerRadius="24"' if _rounded() else ""
+    b, text_w = BUBBLE, CHAT_W - BUBBLE["tip"] - 2 * BUBBLE["inset"]
     slots = ""
     for i in range(CHAT_SLOTS):
-        slots += ('<widget name="bg%d" position="0,0" size="%d,100" zPosition="1" backgroundColor="#30202830"%s/>'
-                  '<widget name="who%d" position="24,16" size="%d,36" zPosition="2" font="Regular;26" noWrap="1" '
-                  'foregroundColor="#00ffd200" transparent="1"/>'
-                  '<widget name="said%d" position="24,54" size="%d,400" zPosition="2" font="Regular;30" '
-                  'foregroundColor="#00ffffff" transparent="1"/>') % (i, CHAT_W, radius, i, CHAT_W - 48, i, CHAT_W - 48)
-    return _scale('<screen name="LynxChat" position="1240,40" size="%d,760" zPosition="5" flags="wfNoBorder" '
+        if BUBBLE_PIXMAPS:
+            slots += ('<widget name="bg%d" position="0,0" size="%d,%d" zPosition="1" alphatest="blend" pixmaps="%s"/>'
+                      % (i, CHAT_W, b["pad"] * 2 + b["who"] + b["line"] * b["lines"] + b["tail"], ",".join(BUBBLE_PIXMAPS)))
+        else:                          # no pictures: a plain blue box
+            slots += '<widget name="bg%d" position="0,0" size="%d,100" zPosition="1" backgroundColor="#100a84ff"/>' % (i, CHAT_W)
+        slots += ('<widget name="who%d" position="%d,%d" size="%d,%d" zPosition="2" font="Regular;26" noWrap="1" '
+                  'foregroundColor="#00d6e8ff" transparent="1"/>'
+                  '<widget name="said%d" position="%d,%d" size="%d,400" zPosition="2" font="Regular;30" '
+                  'foregroundColor="#00ffffff" transparent="1"/>') % (
+                      i, b["inset"], b["pad"], text_w, b["who"], i, b["inset"], b["pad"] + b["who"], text_w)
+    return _scale('<screen name="LynxChat" position="1240,40" size="%d,820" zPosition="5" flags="wfNoBorder" '
                   'backgroundColor="#ff000000">%s</screen>' % (CHAT_W, slots))
 
 
 class ChatBubbles(Screen):
-    """New BATC chat messages over the picture, like texts on a phone: each
-    stays up 10 s (a second more for each line past two), then goes."""
+    """New BATC chat messages over the picture in blue bubbles, like texts
+    on a phone: each stays up 10 s (a second more for each line past two),
+    then goes."""
 
     skin = _chat_skin()
-    PAD, WHO_H, GAP, MAX_SAID = 16, 38, 14, 190      # Full HD pixels
+    GAP = 12                                         # between bubbles, Full HD pixels
 
     def __init__(self, session):
         Screen.__init__(self, session)
         import threading
         for i in range(CHAT_SLOTS):
-            self["bg%d" % i] = Label()
+            self["bg%d" % i] = MultiPixmap() if BUBBLE_PIXMAPS else Label()
             self["who%d" % i] = Label()
             self["said%d" % i] = Label()
         self.lock = threading.Lock()
-        self.incoming, self.shown = [], []           # shown: [name, text, hhmm, until]
+        # Not "shown": Screen uses that name for whether it is on screen
+        # (the first try crashed on it, 2 Nov 2026).
+        self.incoming, self.bubbles = [], []        # bubbles: [name, text, hhmm, until]
         self.paused = False                          # the Lynx list is up: no bubbles over it
         self.timer, self._t = _timer(self._tick)
         self.onClose.append(self.timer.stop)
@@ -1118,7 +1130,7 @@ class ChatBubbles(Screen):
     def clear(self):
         with self.lock:
             self.incoming = []
-        self.shown = []
+        self.bubbles = []
         self._layout()
 
     def _tick(self):
@@ -1127,44 +1139,50 @@ class ChatBubbles(Screen):
         now = time.time()
         changed = bool(new)
         for name, text, hhmm in new:
-            self.shown.append([name, text, hhmm, None])
-        if len(self.shown) > CHAT_SLOTS:
-            self.shown = self.shown[-CHAT_SLOTS:]
-        keep = [b for b in self.shown if b[3] is None or b[3] > now]
-        if len(keep) != len(self.shown):
-            self.shown, changed = keep, True
+            self.bubbles.append([name, text, hhmm, None])
+        if len(self.bubbles) > CHAT_SLOTS:
+            self.bubbles = self.bubbles[-CHAT_SLOTS:]
+        keep = [b for b in self.bubbles if b[3] is None or b[3] > now]
+        if len(keep) != len(self.bubbles):
+            self.bubbles, changed = keep, True
         if changed:
             self._layout()
 
     def _layout(self):
         from .chat import show_for
+        b = BUBBLE
         f = _factor()
         px = lambda v: int(round(v * f))
+        text_w = CHAT_W - b["tip"] - 2 * b["inset"]
         y, now = 0, time.time()
         for i in range(CHAT_SLOTS):
             parts = [self["bg%d" % i], self["who%d" % i], self["said%d" % i]]
-            if i >= len(self.shown) or parts[0].instance is None:
+            if i >= len(self.bubbles) or parts[2].instance is None:
                 for w in parts:
                     w.hide()
                 continue
-            b = self.shown[i]
+            msg = self.bubbles[i]
             bg, who, said = parts
-            who.setText("%s   %s" % (b[0], b[2]))
-            said.instance.resize(eSize(px(CHAT_W - 2 * 24), px(400)))
-            said.setText(b[1])
-            h = min(said.instance.calculateSize().height(), px(self.MAX_SAID))
-            if b[3] is None:                  # its clock starts when it first shows
-                b[3] = now + show_for(max(1, int(round(h / (px(30) * 1.2)))))
-            total = px(self.PAD) + px(self.WHO_H) + h + px(self.PAD)
-            bg.instance.move(ePoint(0, y))
-            bg.instance.resize(eSize(px(CHAT_W), total))
-            who.instance.move(ePoint(px(24), y + px(self.PAD)))
-            said.instance.move(ePoint(px(24), y + px(self.PAD) + px(self.WHO_H)))
-            said.instance.resize(eSize(px(CHAT_W - 2 * 24), h))
+            who.setText("%s   %s" % (msg[0], msg[2]))
+            said.instance.resize(eSize(px(text_w), px(b["line"] * 12)))
+            said.setText(msg[1])
+            lines = int(round(said.instance.calculateSize().height() / float(px(b["line"]))))
+            lines = max(1, min(b["lines"], lines))
+            if msg[3] is None:                    # its clock starts when it first shows
+                msg[3] = now + show_for(lines)
+            body = b["pad"] * 2 + b["who"] + b["line"] * lines
+            if BUBBLE_PIXMAPS:
+                bg.setPixmapNum(lines - 1)
+            else:
+                bg.instance.resize(eSize(px(CHAT_W), px(body)))
+            bg.instance.move(ePoint(0, px(y)))
+            who.instance.move(ePoint(px(b["inset"]), px(y + b["pad"])))
+            said.instance.move(ePoint(px(b["inset"]), px(y + b["pad"] + b["who"])))
+            said.instance.resize(eSize(px(text_w), px(b["line"] * lines)))
             for w in parts:
                 w.show()
-            y += total + px(self.GAP)
-        if self.shown and not self.paused:
+            y += body + b["tail"] + self.GAP
+        if self.bubbles and not self.paused:
             self.show()
         else:
             self.hide()
@@ -1344,7 +1362,12 @@ class LynxBar(Screen):
             plan = tap_plan(stream and stream.getStreamingData())
         except Exception:
             plan = None
-        return ("tap", plan, url) if plan else ("url", url)
+        if plan:
+            return ("tap", plan, url)
+        # Just after a tune the service may not yet say its PIDs: wait for
+        # them rather than start on port 8001 and switch a second later
+        # (seen 2 Nov 2026). Port 8001 only where the demux will not open.
+        return ("url", url) if self.meter and self.meter.tap_failed else None
 
     def _show_ppm(self, show):
         """Shows or hides the PPM, sliding the text along to match the
