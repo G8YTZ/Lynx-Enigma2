@@ -1824,15 +1824,19 @@ class ChatSafety(Screen):
 
     def fill(self):
         from .chat import is_hidden
-        rows = []
+        # A hidden sender's messages stay hidden here too (Justin, 2 Nov
+        # 2026): one line per hidden sender instead, to show them again.
+        rows, held = [], {}
         for name, text, hhmm in reversed(self.overlay.messages()):     # newest first
-            mark = _(" (hidden)") if is_hidden(name, self.overlay.hidden) else ""
+            if is_hidden(name, self.overlay.hidden):
+                held[name.lower()] = held.get(name.lower(), 0) + 1
+                continue
             short = text if len(text) <= 60 else text[:57] + "..."
-            rows.append(("%s  %s%s: %s" % (hhmm, name, mark, short), name))
-        heard = set(r[1].lower() for r in rows)
+            rows.append(("%s  %s: %s" % (hhmm, name, short), name))
         for name in self.overlay.hidden:
-            if name.lower() not in heard:
-                rows.append((_("Hidden: %s (OK to show again)") % name, name))
+            n = held.get(name.lower(), 0)
+            heard = (_(" (%d message)") if n == 1 else _(" (%d messages)")) % n if n else ""
+            rows.append((_("%s: hidden%s; OK to show again") % (name, heard), name))
         if not rows:
             rows = [(_("No chat messages heard yet while watching."), None)]
         self.rows = rows
