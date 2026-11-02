@@ -129,8 +129,49 @@ def discard(available, codecs=None):
     return "matroska", "pcm_s16le"
 
 
+# Reading the demux directly (2 Nov 2026). OpenATV's stream server on port
+# 8001 writes in buffers of 188 x 1024 bytes: at a 1 MS/s repeater's 75 kB/s
+# that is one lump every 2.5 s, so the meter lagged the sound by up to that
+# and the needles froze between lumps, then raced (Justin: "on music the
+# ballistics are all wrong"). Lynx now opens the playing service's demux
+# itself, as Enigma2's own recorder does (demux.cpp eDVBTSRecorder), with
+# only PAT, PMT and the sound, and hands ffmpeg the packets as they come.
+DMX_START = 0x6f29                        # _IO('o', 41)
+DMX_STOP = 0x6f2a                         # _IO('o', 42)
+DMX_SET_PES_FILTER = 0x40146f2c           # _IOW('o', 44, struct dmx_pes_filter_params)
+DMX_SET_BUFFER_SIZE = 0x6f2d              # _IO('o', 45)
+DMX_ADD_PID = 0x40026f33                  # _IOW('o', 51, __u16)
+DMX_IN_FRONTEND = 0
+DMX_OUT_TSDEMUX_TAP = 3
+DMX_PES_OTHER = 20
+TAP_BUFFER = 64 * 1024                    # the demux's own buffer for our filter
+TAP_READ = 188 * 16                       # read in small pieces: 3 kB, ~40 ms of AAC
+
+
+def pes_filter(pid):
+    """struct dmx_pes_filter_params: u16 pid, (pad), input, output, pes_type, flags."""
+    import struct
+    return struct.pack("=H2xIIII", pid, DMX_IN_FRONTEND, DMX_OUT_TSDEMUX_TAP, DMX_PES_OTHER, 0)
+
+
+def tap_plan(data):
+    """From Enigma2's getStreamingData() dict: (adapter, demux, [PAT, PMT,
+    sound]) for the programme's sound, or None if there is no sound to meter."""
+    if not data or "demux" not in data:
+        return None
+    pids = dict((kind, pid) for pid, kind in reversed(data.get("pids") or []))
+    sounds = [pid for pid, kind in data.get("pids") or [] if kind == "audio"]
+    sound = data.get("default_audio_pid", -1)
+    if sound is None or sound < 0 or sound not in sounds:
+        sound = sounds[0] if sounds else None
+    if sound is None or "pmt" not in pids or data["demux"] < 0:
+        return None
+    return int(data.get("adapter", 0) or 0), int(data["demux"]), [0, pids["pmt"], sound]
+
+
 def command(url, output=("null", None)):
-    """ffmpeg, reading one programme's sound and printing per-block peaks."""
+    """ffmpeg, reading one programme's sound and printing per-block peaks.
+    url "pipe:0" means transport stream on standard input (the demux tap)."""
     # No forcing to stereo: that mixed a mono programme into both channels
     # 3 dB down. Mono reads on channel 1 and the reader shows it on both
     # needles; 5.1 meters its front pair, which ffmpeg puts first.
@@ -142,7 +183,8 @@ def command(url, output=("null", None)):
     # loud passages read low.
     return ["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-fflags", "nobuffer",
             "-flags", "low_delay",
-            "-analyzeduration", "700000", "-probesize", "400000", "-drc_scale", "0",
+            "-analyzeduration", "700000", "-probesize", "400000", "-drc_scale", "0"
+            ] + (["-f", "mpegts"] if url == "pipe:0" else []) + [
             "-i", url, "-vn", "-sn", "-dn", "-map", "0:a:0", "-af", af,
             "-metadata", "comment=" + MARKER] + (
         ["-f", "null", "-"] if output[0] == "null" else ["-c:a", output[1], "-f", output[0], "-y", "/dev/null"])

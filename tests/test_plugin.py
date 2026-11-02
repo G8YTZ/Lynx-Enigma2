@@ -556,6 +556,22 @@ def test_lnb_power_off():
     assert not lnbpower.apply(True, NM2)                   # an image without 0 V
 
 
+def test_ppm_tap():
+    from LynxRepeaters import ppm
+    data = {"pids": [(0, "pat"), (0x1000, "pmt"), (0x100, "video"), (0x101, "audio"), (0x102, "audio"),
+                     (0x100, "pcr")], "adapter": 0, "demux": 2, "default_audio_pid": 0x102}
+    assert ppm.tap_plan(data) == (0, 2, [0, 0x1000, 0x102])
+    data["default_audio_pid"] = -1
+    assert ppm.tap_plan(data) == (0, 2, [0, 0x1000, 0x101])
+    assert ppm.tap_plan({"pids": [(0, "pat"), (0x1000, "pmt"), (0x100, "video")], "demux": 0}) is None
+    assert ppm.tap_plan(None) is None
+    assert len(ppm.pes_filter(0x101)) == 20 and ppm.pes_filter(0x101)[:2] == b"\x01\x01"
+    cmd = ppm.command("pipe:0")
+    i = cmd.index("-i")
+    assert cmd[i + 1] == "pipe:0" and cmd[i - 2:i] == ["-f", "mpegts"]
+    assert "-f" not in ppm.command("http://x")[:ppm.command("http://x").index("-i")]
+
+
 def test_ppm():
     from LynxRepeaters import ppm
     m = ppm.Ballistics()

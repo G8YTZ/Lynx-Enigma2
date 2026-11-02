@@ -169,15 +169,89 @@ PPM_PIXMAPS = _ppm_pixmaps()
 PPM_MS = 50                            # the needles move 20 times a second
 
 
+class DemuxTap(object):
+    """The playing programme's PAT, PMT and sound, read straight from its
+    demux (as Enigma2's own recorder does) and fed to ffmpeg's standard
+    input as they arrive: no 2.5 s lumps from the port 8001 server."""
+
+    def __init__(self, plan):
+        self.adapter, self.demux, self.pids = plan
+        self.fd, self.running = None, False
+
+    def open(self):
+        import fcntl
+        from .ppm import DMX_ADD_PID, DMX_SET_BUFFER_SIZE, DMX_SET_PES_FILTER, DMX_START, TAP_BUFFER, pes_filter
+        import struct
+        path = "/dev/dvb/adapter%d/demux%d" % (self.adapter, self.demux)
+        fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+        try:
+            try:
+                fcntl.ioctl(fd, DMX_SET_BUFFER_SIZE, TAP_BUFFER)
+            except (IOError, OSError):
+                pass
+            fcntl.ioctl(fd, DMX_SET_PES_FILTER, pes_filter(self.pids[0]))
+            fcntl.ioctl(fd, DMX_START)
+            for pid in self.pids[1:]:
+                fcntl.ioctl(fd, DMX_ADD_PID, struct.pack("=H", pid))
+        except (IOError, OSError):
+            os.close(fd)
+            raise
+        self.fd, self.running = fd, True
+
+    def pump(self, out):
+        """Copies the demux to out (ffmpeg's stdin) until stopped or ffmpeg ends."""
+        import select
+        from .ppm import TAP_READ
+        fd = self.fd
+        try:
+            while self.running:
+                ready = select.select([fd], [], [], 0.5)[0]
+                if not ready:
+                    continue
+                try:
+                    data = os.read(fd, TAP_READ)
+                except (IOError, OSError) as e:
+                    if e.errno in (11, 75):          # EAGAIN, EOVERFLOW (demux buffer overran: carry on)
+                        continue
+                    raise
+                if data:
+                    out.write(data)
+                    out.flush()
+        except (IOError, OSError, ValueError):
+            pass                                     # ffmpeg gone, or the demux closed under us
+        finally:
+            try:
+                out.close()
+            except (IOError, OSError, ValueError):
+                pass
+
+    def close(self):
+        self.running = False
+        fd, self.fd = self.fd, None
+        if fd is not None:
+            import fcntl
+            from .ppm import DMX_STOP
+            try:
+                fcntl.ioctl(fd, DMX_STOP)
+            except (IOError, OSError):
+                pass
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+
+
 class PPMMeter(object):
-    """ffmpeg reading the box's own stream of what is playing (port 8001),
-    decoding the sound only; a thread turns its peaks into needle
-    positions. One at a time; stopped with its whole process group."""
+    """ffmpeg decoding the sound only of what is playing, read from its
+    demux (DemuxTap), or the box's own stream on port 8001 if the demux
+    will not open; a thread turns its peaks into needle positions. One at
+    a time; stopped with its whole process group."""
 
     def __init__(self):
         from .ppm import Reader
         self.reader = Reader()
         self.proc, self.url, self.thread, self.failed_at, self.tries = None, None, None, None, 0
+        self.tap, self.tap_failed = None, False
         import threading
         self.lock = threading.Lock()
 
@@ -186,7 +260,9 @@ class PPMMeter(object):
                                          # upset the sound for a moment (1 Nov 2026)
     ERRORS = "/tmp/lynx-ppm.log"
 
-    def start(self, url):
+    def start(self, source):
+        """source: ("tap", (adapter, demux, pids), fallback url) or ("url", url)."""
+        url = source
         if url == self.url and self.proc and self.proc.poll() is None:
             return
         if url == self.url and self.proc and self.proc.poll() is not None:
@@ -210,17 +286,36 @@ class PPMMeter(object):
         self.failed_at, self.tries = None, tries
         import subprocess
         from .ppm import command
+        tap = None
+        if source[0] == "tap" and not self.tap_failed:
+            tap = DemuxTap(source[1])
+            try:
+                tap.open()
+            except (IOError, OSError) as e:
+                # Not on this box: say so once and use the stream server from now on.
+                log("PPM: demux %d would not open for the sound (%s); using port 8001" % (source[1][1], e))
+                self.tap_failed, tap = True, None
+        where = "pipe:0" if tap else (source[2] if source[0] == "tap" else source[1])
         try:
             with open(self.ERRORS, "w") as errors:
-                self.proc = subprocess.Popen(command(url, _discard_format()), stdout=subprocess.PIPE, stderr=errors,
-                                             preexec_fn=os.setsid)
+                self.proc = subprocess.Popen(command(where, _discard_format()), stdout=subprocess.PIPE, stderr=errors,
+                                             stdin=subprocess.PIPE if tap else None, preexec_fn=os.setsid)
         except (OSError, ValueError) as e:
             log("PPM: could not start ffmpeg: %s" % e)
             self.proc = None
+            if tap:
+                tap.close()
             return
         self.url = url
-        log("PPM: metering %s" % url)
         import threading
+        if tap:
+            self.tap = tap
+            feeder = threading.Thread(target=tap.pump, args=(self.proc.stdin,))
+            feeder.daemon = True
+            feeder.start()
+            log("PPM: metering demux %d, PIDs %s" % (source[1][1], ", ".join("0x%x" % p for p in source[1][2])))
+        else:
+            log("PPM: metering %s" % where)
         self.thread = threading.Thread(target=self._read, args=(self.proc,))
         self.thread.daemon = True
         self.thread.start()
@@ -246,6 +341,9 @@ class PPMMeter(object):
 
     def stop(self):
         proc, self.proc, self.url, self.failed_at = self.proc, None, None, None
+        tap, self.tap = self.tap, None
+        if tap:
+            tap.close()                  # the demux filter goes before any tune
         if proc and proc.poll() is None:
             import signal as sig
             try:
@@ -1059,9 +1157,9 @@ class LynxBar(Screen):
         self["eye"].setPixmapNum(EYE_FRAMES if n == "off" else n)
 
     def _ppm_source(self):
-        """What the PPM should meter: the box's own stream of the on-air
-        programme playing, or nothing (streams: not yet, it would mean a
-        second connection to BATC)."""
+        """What the PPM should meter: the on-air programme playing, from its
+        demux (with the box's own stream on port 8001 to fall back on), or
+        nothing (streams: not yet, it would mean a second connection to BATC)."""
         if self.entry.get("via_stream") or self.entry.get("pending") or self.notice_text:
             return None
         try:
@@ -1071,7 +1169,15 @@ class LynxBar(Screen):
             return None
         if not ref or not ref.startswith("1:"):
             return None
-        return "http://127.0.0.1:8001/" + ref
+        url = "http://127.0.0.1:8001/" + ref
+        try:
+            from .ppm import tap_plan
+            service = self.session.nav.getCurrentService()
+            stream = service and service.stream()
+            plan = tap_plan(stream and stream.getStreamingData())
+        except Exception:
+            plan = None
+        return ("tap", plan, url) if plan else ("url", url)
 
     def _ppm(self):
         if not self.visible:
