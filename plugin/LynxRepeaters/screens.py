@@ -1142,12 +1142,12 @@ def chat_room(entry, listed=()):
 _BUBBLE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bubble")
 CHAT_SLOTS = 3                         # bubbles on screen at once, newest at the bottom
 CHAT_W = 640                           # as tools/make_bubble.py draws them, at Full HD
-BUBBLE = {"pad": 16, "who": 38, "line": 36, "tail": 12, "tip": 14, "lines": 5, "inset": 26,
+BUBBLE = {"pad": 16, "who": 38, "line": 36, "tail": 12, "tip": 14, "lines": 8, "inset": 26,
           "left": 34, "right": 48, "blue": "#000a84ff"}
 
 
 def _bubble_pixmaps():
-    """The bubbles' two ends, (left, right) for 1 to 5 lines; None if missing.
+    """The bubbles' two ends, (left, right) for 1 to 8 lines; None if missing.
     A plain blue box between them is as wide as the message."""
     if not MultiPixmap:
         return None
@@ -1246,6 +1246,7 @@ class ChatBubbles(Screen):
         px = lambda v: int(round(v * f))
         text_w = CHAT_W - b["tip"] - 2 * b["inset"]
         y, now = 0, time.time()
+        self._fit(px, text_w)
         for i in range(CHAT_SLOTS):
             parts = self._parts(i)
             mid, who, said = parts[:3]
@@ -1256,9 +1257,16 @@ class ChatBubbles(Screen):
             msg = self.bubbles[i]
             who.instance.resize(eSize(px(text_w), px(b["who"])))
             who.setText("%s   %s" % (msg[0], msg[2]))
-            said.instance.resize(eSize(px(text_w), px(b["line"] * 12)))
+            said.instance.resize(eSize(px(text_w), px(b["line"] * 30)))
             said.setText(msg[1])
             size = said.instance.calculateSize()
+            # Longer than the tallest bubble: cut at a word, with "..." (Justin,
+            # 2 Nov 2026: long messages were cut off). Once, then kept.
+            while size.height() > px(b["line"] * b["lines"]) + px(b["line"]) // 2 and " " in msg[1]:
+                body = msg[1][:-3] if msg[1].endswith("...") else msg[1]
+                msg[1] = body.rsplit(" ", 1)[0].rstrip(".,;:") + "..."
+                said.setText(msg[1])
+                size = said.instance.calculateSize()
             lines = max(1, min(b["lines"], int(round(size.height() / float(px(b["line"]))))))
             if msg[3] is None:                    # its clock starts when it first shows
                 msg[3] = now + show_for(lines)
@@ -1289,6 +1297,26 @@ class ChatBubbles(Screen):
             self.show()
         else:
             self.hide()
+
+    TALL = 820                                       # the overlay's height, Full HD pixels
+
+    def _fit(self, px, text_w):
+        """Oldest bubbles go early when three long ones would not fit in the
+        overlay (as on Lynx-Tx): the newest message always shows whole."""
+        b, said = BUBBLE, self["said0"]
+        if said.instance is None:
+            return
+        while len(self.bubbles) > 1:
+            total = 0
+            for msg in self.bubbles:
+                said.instance.resize(eSize(px(text_w), px(b["line"] * 30)))
+                said.setText(msg[1])
+                h = said.instance.calculateSize().height()
+                lines = max(1, min(b["lines"], int(round(h / float(px(b["line"]))))))
+                total += b["pad"] * 2 + b["who"] + b["line"] * lines + b["tail"] + self.GAP
+            if total - self.GAP <= self.TALL:
+                return
+            self.bubbles.pop(0)
 
     def pause(self, paused):
         self.paused = paused

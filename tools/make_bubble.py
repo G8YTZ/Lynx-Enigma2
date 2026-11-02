@@ -3,7 +3,7 @@
 #
 # Copyright (C) 2026 Justin Cockett, G8YTZ. GPL-2.0-or-later; see LICENSE.
 """iMessage-style blue speech bubbles for BATC chat on the picture (Justin,
-2 Nov 2026), one per message height (1 to 5 lines of text), with a tail at
+2 Nov 2026), one per message height (1 to 8 lines of text), with a tail at
 the bottom right. Drawn at four times the size and shrunk, so the edges are
 smooth on any box (a skin's cornerRadius is not on older images and gave no
 bubble at all on the first try).
@@ -22,7 +22,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "plugin", "LynxRepeaters", "bubble")
 SS = 4
 W, PAD, WHO_H, LINE_H, TAIL, RADIUS = 640, 16, 38, 36, 12, 34
-LINES = 5
+LINES = 8
 BLUE = (10, 132, 255, 255)       # Apple's message blue, solid so the stretched middle matches
 LEFT, RIGHT, TIP = RADIUS, RADIUS + 14, 14   # the ends' widths; the right end carries the tail
 
