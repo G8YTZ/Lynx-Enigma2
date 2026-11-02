@@ -94,7 +94,7 @@ OpenATV's MetrixHD skin draws its menus at 1280x720 out of the box, so the Lynx 
 2. Set **EHD** (Enhanced HD) to **Full HD**. Leave "advanced picon scaling" at No.
 3. Press **green**. MetrixHD rebuilds its pictures, which takes a few minutes.
 
-Our box sat on "Processing" for over an hour although the job was long done. If that happens, restart the GUI (Menu, Standby / Restart, Restart GUI, or over SSH `wget -qO- "http://127.0.0.1/api/powerstate?newstate=3"`). To check it worked: `cat /sys/class/graphics/fb0/virtual_size` on the box should say `1920,2160` (it says `1280,1440` at 720).
+**Give it 30 minutes and do not switch the box off meanwhile**: it is rebuilding every picture in the skin. Our box then sat on "Processing" for over an hour although the job was long done. If it is still there after 30 minutes, restart the GUI (Menu, Standby / Restart, Restart GUI, or over SSH `wget -qO- "http://127.0.0.1/api/powerstate?newstate=3"`). To check it worked: `cat /sys/class/graphics/fb0/virtual_size` on the box should say `1920,2160` (it says `1280,1440` at 720).
 
 ## 2. Installing Lynx
 
