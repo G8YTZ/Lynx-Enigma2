@@ -155,6 +155,17 @@ def message(data):
     return _native(name)[:20], _native(text)[:400], clock(data.get("time"))
 
 
+def epoch(iso):
+    """"2026-11-01T18:35:12.345Z" (UTC) as seconds since 1970, or None."""
+    try:
+        import calendar
+        whole = calendar.timegm(time.strptime(str(iso)[:19], "%Y-%m-%dT%H:%M:%S"))
+        frac = str(iso)[19:].lstrip(".").rstrip("Z")
+        return whole + (float("0." + frac) if frac.isdigit() else 0.0)
+    except (ValueError, TypeError):
+        return None
+
+
 def clock(iso):
     """"2026-11-01T18:35:12.345Z" (UTC) as local "18:35"; now if unreadable."""
     try:
@@ -200,7 +211,7 @@ class Listener(object):
     caller hands it on to Enigma2's. History on joining is not shown, nor
     anything said before this listener started."""
 
-    RETRY_S = 20
+    RETRY_S = (2, 5, 10, 20)               # after each drop in a row; then every 20 s
 
     def __init__(self, room, heard, log=lambda text: None):
         if not _ROOM.match(room or ""):
@@ -209,6 +220,15 @@ class Listener(object):
         self.running = False
         self.sid = None
         self.ping_s = 25
+        # The newest message passed on, by BATC's own timestamp. Each new
+        # session sends the room's recent history: anything in it newer than
+        # this was said while the connection was down, and is shown late
+        # rather than lost, as BATC's own page does (Colin and Wolfgang, 3 Nov
+        # 2026: no chat at all on some broadband, where sessions keep dropping).
+        # None until the first session: its history is what was said before
+        # Lynx started, so it only sets the mark. BATC's clock, not the box's,
+        # which may be wrong.
+        self.last = None
 
     def start(self):
         self.running = True
@@ -249,15 +269,23 @@ class Listener(object):
                 return
         except Exception as e:
             self.log("chat: could not ask BATC about %s (%s); trying anyway" % (self.room, e))
-        told = False
+        drops = 0
         while self.running:
+            began = time.time()
             try:
                 self._session()
+                why = "ended"
             except Exception as e:
-                if not told:
-                    self.log("chat: %s: %s; trying again every %d s" % (self.room, e, self.RETRY_S))
-                    told = True
-            for _ in range(self.RETRY_S * 2):
+                why = str(e) or e.__class__.__name__
+            if not self.running:
+                return
+            if time.time() - began > 120:
+                drops = 0                          # it had been working: start the waits again
+            wait = self.RETRY_S[min(drops, len(self.RETRY_S) - 1)]
+            drops += 1
+            self.log("chat: %s: %s after %d s; again in %d s"
+                     % (self.room, why, int(time.time() - began), wait))
+            for _ in range(int(wait * 2)):
                 if not self.running:
                     return
                 time.sleep(0.5)
@@ -278,12 +306,36 @@ class Listener(object):
         while self.running:
             for name, data in events(packets):
                 if name == "message":
-                    m = message(data)
-                    if m and self.running:
-                        self.heard(*m)
+                    self._pass_on(data)
+                elif name == "history" and isinstance(data, dict):
+                    older = [h for h in data.get("history") or [] if isinstance(h, dict)]
+                    if self.last is None:          # the first join: mark, show nothing
+                        times = [epoch(h.get("time")) for h in older]
+                        self.last = max([t for t in times if t] or [0])
+                    else:
+                        missed = 0
+                        for old in older:
+                            missed += self._pass_on(old)
+                        if missed:
+                            self.log("chat: %s: %d message(s) from while the connection was down"
+                                     % (self.room, missed))
             if any(p.startswith("1") for p in packets):
                 raise IOError("BATC closed the chat")
             packets = self._get(self.ping_s + 20)
+
+    def _pass_on(self, data):
+        """One message to the caller, if it is newer than the last one: so a
+        message is never shown twice, nor anything from before Lynx started."""
+        m = message(data)
+        if not m or not self.running:
+            return 0
+        t = epoch(data.get("time"))
+        if t is not None and self.last is not None and t <= self.last:
+            return 0
+        if t is not None:
+            self.last = t if self.last is None else max(self.last, t)
+        self.heard(*m)
+        return 1
 
     def _ping(self):
         sid = self.sid

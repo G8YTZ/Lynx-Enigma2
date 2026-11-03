@@ -582,6 +582,43 @@ def test_chat():
         pass
 
 
+def test_chat_catch_up():
+    """A dropped session loses nothing: the next one's history fills the gap,
+    and nothing is shown twice or from before Lynx started (3 Nov 2026)."""
+    import json
+    from LynxRepeaters import chat
+    def msg(t, text):
+        return {"time": "2026-11-03T22:%s.000Z" % t, "name": "G4KLB", "message": text}
+    def hist(*ms):
+        return '42' + json.dumps(["history", {"history": list(ms), "nicks": []}])
+    def said(m):
+        return '42' + json.dumps(["message", m])
+    heard = []
+    L = chat.Listener("gb3oo", lambda n, t, h: heard.append(t))
+    L.running = True
+    sessions = [
+        ['0{"sid":"a","pingInterval":25000}', hist(msg("00:00", "before Lynx")), said(msg("01:00", "one"))],
+        ['0{"sid":"b","pingInterval":25000}', hist(msg("00:00", "before Lynx"), msg("01:00", "one"),
+                                                   msg("02:00", "said while down")), said(msg("03:00", "three"))],
+    ]
+    for packets in sessions:
+        first = list(packets)
+        calls = {"n": 0}
+        def get(timeout, first=first, calls=calls):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return first
+            raise IOError("dropped")
+        L._get = get
+        L._ping = lambda: None
+        try:
+            L._session()
+        except IOError:
+            pass
+    assert heard == ["one", "said while down", "three"], heard
+    assert chat.epoch("2026-11-03T22:01:00.250Z") - chat.epoch("2026-11-03T22:01:00Z") == 0.25
+
+
 def test_chat_hidden():
     import os
     import tempfile
