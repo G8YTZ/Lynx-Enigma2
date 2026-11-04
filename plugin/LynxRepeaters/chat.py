@@ -29,18 +29,21 @@ from __future__ import absolute_import, division, print_function
 
 import json
 import re
+import socket
 import ssl
 import threading
 import time
 
 try:
     from urllib.parse import quote                    # Python 3
-    from urllib.request import HTTPCookieProcessor, Request, build_opener
+    from urllib.request import HTTPCookieProcessor, HTTPSHandler, Request, build_opener
     from http.cookiejar import CookieJar
+    import http.client as _httplib
 except ImportError:                                   # Python 2
     from urllib import quote
-    from urllib2 import HTTPCookieProcessor, Request, build_opener
+    from urllib2 import HTTPCookieProcessor, HTTPSHandler, Request, build_opener
     from cookielib import CookieJar
+    import httplib as _httplib
 
 from .repeaters import _native
 
@@ -180,27 +183,81 @@ def show_for(lines):
     return SHOW_S + EXTRA_S_PER_LINE * max(0, lines - 2)
 
 
-def _open(opener, req, timeout):
+# Connecting, IPv6 or IPv4 (Colin G4KLB, 4 Nov 2026): on his line BATC took
+# exactly as long to answer as Lynx would wait (15 s, then 30 s when that was
+# raised), every time. That is what a dead IPv6 route looks like: Python tries
+# BATC's IPv6 address first, waits the whole time-out for it, then connects
+# over IPv4 at once. Every request paid it, pings arrived too late, and BATC
+# dropped the session. Browsers hide this ("happy eyeballs"). So each address
+# gets 3 s to connect, and the family that worked is tried first after that.
+_FAMILY = [None, None]           # the address family, and address, that connected last
+NOTES = []                       # for the listener's log: what connecting found
+
+
+def _connect(host, port, timeout):
+    infos = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)
+    if _FAMILY[0] is not None:
+        infos.sort(key=lambda a: (a[4] != _FAMILY[1], a[0] != _FAMILY[0]))
+    last, failed = None, []
+    for i, (fam, kind, proto, _name, addr) in enumerate(infos):
+        sock = socket.socket(fam, kind, proto)
+        sock.settimeout(timeout if i == len(infos) - 1 else min(3.0, timeout))
+        began = time.time()
+        try:
+            sock.connect(addr)
+        except Exception as e:
+            sock.close()
+            last = e
+            failed.append("%s %.0f s" % ("IPv6" if fam == getattr(socket, "AF_INET6", -1) else "IPv4",
+                                         time.time() - began))
+            continue
+        if failed and _FAMILY[0] != fam:
+            NOTES.append("connected over %s after no answer over %s"
+                         % ("IPv6" if fam == getattr(socket, "AF_INET6", -1) else "IPv4",
+                            ", ".join(failed)))
+        _FAMILY[0], _FAMILY[1] = fam, addr
+        sock.settimeout(timeout)
+        return sock
+    raise last or IOError("no address for %s" % host)
+
+
+class _Connection(_httplib.HTTPSConnection):
+    def connect(self):
+        if getattr(self, "_tunnel_host", None):           # through a proxy: as usual
+            return _httplib.HTTPSConnection.connect(self)
+        timeout = self.timeout if isinstance(self.timeout, (int, float)) else 30
+        sock = _connect(self.host, self.port, timeout)
+        context = getattr(self, "_context", None) or ssl.create_default_context()
+        self.sock = context.wrap_socket(sock, server_hostname=self.host)
+
+
+class _Handler(HTTPSHandler):
+    def https_open(self, req):
+        return self.do_open(_Connection, req, context=getattr(self, "_context", None))
+
+
+def opener(*handlers):
+    """urllib's opener, with the connecting above."""
+    return build_opener(_Handler(), *handlers)
+
+
+def _open(opener_, req, timeout):
     """As streams.fetch: without checking BATC's certificate only if the box
     has no certificates to check it against."""
     try:
-        return opener.open(req, timeout=timeout).read()
+        return opener_.open(req, timeout=timeout).read()
     except Exception as e:
         if "CERTIFICATE" not in str(e).upper() or not hasattr(ssl, "_create_unverified_context"):
             raise
-    try:
-        from urllib.request import HTTPSHandler       # Python 3
-    except ImportError:
-        from urllib2 import HTTPSHandler
-    handlers = [h for h in opener.handlers if isinstance(h, HTTPCookieProcessor)]
-    plain = build_opener(HTTPSHandler(context=ssl._create_unverified_context()), *handlers)
+    handlers = [h for h in opener_.handlers if isinstance(h, HTTPCookieProcessor)]
+    plain = build_opener(_Handler(context=ssl._create_unverified_context()), *handlers)
     return plain.open(req, timeout=timeout).read()
 
 
 def chat_on(room, timeout=10):
     """Whether BATC has chat switched on for this stream."""
     req = Request(STREAM_INFO % quote(room), headers={"User-Agent": "Lynx-Enigma2"})
-    body = _open(build_opener(), req, timeout)
+    body = _open(opener(), req, timeout)
     d = json.loads(body.decode("utf-8"))
     return isinstance(d, dict) and str(d.get("chat_on")) == "1"
 
@@ -291,7 +348,7 @@ class Listener(object):
                 time.sleep(0.5)
 
     def _session(self):
-        self.opener, self.sid = build_opener(HTTPCookieProcessor(CookieJar())), None
+        self.opener, self.sid = opener(HTTPCookieProcessor(CookieJar())), None
         began = time.time()
         opened = self._get(30)
         if not opened or not opened[0].startswith("0"):
@@ -301,6 +358,8 @@ class Listener(object):
         self.ping_s = max(5, hello.get("pingInterval", 25000) / 1000.0)
         self.log("chat: following %s (BATC answered in %.1f s; ping every %g s, limit %g s)"
                  % (self.room, time.time() - began, self.ping_s, hello.get("pingTimeout", 0) / 1000.0))
+        while NOTES:
+            self.log("chat: %s" % NOTES.pop(0))
         pinger = threading.Thread(target=self._ping)
         pinger.daemon = True
         pinger.start()
