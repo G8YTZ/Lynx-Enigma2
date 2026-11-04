@@ -619,6 +619,45 @@ def test_chat_catch_up():
     assert chat.epoch("2026-11-03T22:01:00.250Z") - chat.epoch("2026-11-03T22:01:00Z") == 0.25
 
 
+def test_net_skips_a_dead_address():
+    """A dead IPv6 route costs 3 s once, then nothing (Colin G4KLB, 4 Nov 2026)."""
+    import socket
+    import threading
+    import time
+    from LynxRepeaters import net
+    server = socket.socket()
+    server.bind(("127.0.0.1", 0))
+    server.listen(4)
+    port = server.getsockname()[1]
+    def serve():
+        try:
+            for _ in range(2):
+                server.accept()[0].close()
+        except (OSError, socket.error):
+            pass
+    t = threading.Thread(target=serve)
+    t.daemon = True
+    t.start()
+    real = socket.getaddrinfo
+    dead = (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.255.255.1", port))
+    live = (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", port))
+    socket.getaddrinfo = lambda *a, **k: [dead, live]
+    old, net.CONNECT_S = net.CONNECT_S, 0.3
+    try:
+        net._LAST[:] = [None, None]
+        t = time.time()
+        net.connect("batc.test", port, 10).close()
+        first = time.time() - t
+        t = time.time()
+        net.connect("batc.test", port, 10).close()
+        again = time.time() - t
+    finally:
+        socket.getaddrinfo, net.CONNECT_S = real, old
+        server.close()
+    assert 0.25 < first < 2, first                  # waited for the dead one, briefly
+    assert again < 0.2, again                       # then went straight to the one that worked
+
+
 def test_chat_hidden():
     import os
     import tempfile

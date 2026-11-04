@@ -207,13 +207,9 @@ def fetch(timeout=15):
     BATC's against, it fetches without checking: only stream names are
     used from the list, so the worst a forged list could do is name
     streams that do not exist."""
+    from . import net
     req = Request(API, headers={"User-Agent": "Lynx-Enigma2"})
-    try:
-        body = urlopen(req, timeout=timeout).read()
-    except Exception as e:
-        if "CERTIFICATE" not in str(e).upper() or not hasattr(ssl, "_create_unverified_context"):
-            raise
-        body = urlopen(req, timeout=timeout, context=ssl._create_unverified_context()).read()
+    body = net.read(req, timeout)          # 3 s per address: a dead IPv6 route costs 3 s, not 15
     return parse(_native(json.loads(body.decode("utf-8"))))
 
 

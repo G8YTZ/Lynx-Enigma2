@@ -60,7 +60,8 @@ def parse(data):
 
 def latest(timeout=15):
     req = Request(API, headers={"User-Agent": "Lynx-Enigma2", "Accept": "application/vnd.github+json"})
-    body = urlopen(req, timeout=timeout).read()
+    from . import net
+    body = net.opener().open(req, timeout=timeout).read()   # 3 s per address, as for BATC
     return parse(_native(json.loads(body.decode("utf-8"))))
 
 
