@@ -1844,10 +1844,17 @@ class LynxGuide(Screen):
 <screen name="LynxGuide" position="center,center" size="1600,860" title="Programme guide" backgroundColor="#00141414" flags="wfNoBorder">
   <eLabel position="0,0" size="1600,90" backgroundColor="#00d0021b"/>
   <widget zPosition="1" name="title" position="40,0" size="1500,90" font="Regular;40" valign="center" foregroundColor="#00ffffff" backgroundColor="#00d0021b"/>
-  <widget zPosition="1" source="list" render="Listbox" position="30,110" size="980,620" scrollbarMode="showOnDemand" backgroundColor="#00141414" backgroundColorSelected="#00d0021b">
-    <convert type="StringList"/>
+  <widget zPosition="1" source="list" render="Listbox" position="30,110" size="1060,620" scrollbarMode="showOnDemand" backgroundColor="#00141414" backgroundColorSelected="#00d0021b" transparent="0">
+    <convert type="TemplatedMultiContent">
+      {"template": [
+        MultiContentEntryText(pos=(12,0), size=(190,62), font=0, flags=RT_HALIGN_LEFT|RT_VALIGN_CENTER, text=0, color=0xFFD200, color_sel=0xFFFFFF),
+        MultiContentEntryText(pos=(210,0), size=(600,62), font=0, flags=RT_HALIGN_LEFT|RT_VALIGN_CENTER, text=1, color=0xFFFFFF, color_sel=0xFFFFFF),
+        MultiContentEntryText(pos=(815,0), size=(215,62), font=1, flags=RT_HALIGN_RIGHT|RT_VALIGN_CENTER, text=2, color=0xB0B0B0, color_sel=0xFFFFFF)],
+       "fonts": [gFont("Regular", 36), gFont("Regular", 28)],
+       "itemHeight": 62}
+    </convert>
   </widget>
-  <widget zPosition="1" name="details" position="1040,110" size="530,620" font="Regular;28" foregroundColor="#00e0e0e0" backgroundColor="#00141414"/>
+  <widget zPosition="1" name="details" position="1120,110" size="450,620" font="Regular;34" foregroundColor="#00e0e0e0" backgroundColor="#00141414"/>
   <widget zPosition="1" name="status" position="30,745" size="1540,44" font="Regular;28" valign="center" foregroundColor="#00ffd200" backgroundColor="#00141414"/>
   <eLabel position="40,800" size="8,44" backgroundColor="#00d0021b"/>
   <widget zPosition="1" source="key_red" render="Label" position="56,800" size="300,44" font="Regular;30" valign="center" transparent="1"/>
@@ -1885,7 +1892,7 @@ class LynxGuide(Screen):
         if not sref.startswith("1:"):
             # 4097, 5001, 5002: a stream player. BATC's streams carry no guide.
             self.events = []
-            self["list"].setList([_("No guide: a BATC stream carries none.")])
+            self["list"].setList([("", _("No guide: a BATC stream carries none."), "")])
             self["status"].setText(_("Watch the repeater on air for its guide, if it sends one."))
             return
         events = guide.from_cache(sref, now)
@@ -1894,10 +1901,10 @@ class LynxGuide(Screen):
             events, whole = guide.from_live(service, now), False
         self.events = events
         if not events:
-            self["list"].setList([_("This repeater sends no programme guide.")])
+            self["list"].setList([("", _("This repeater sends no programme guide."), "")])
             self["status"].setText(_("A repeater sends one only if its transmitter is set up to."))
             return
-        self["list"].setList([guide.row(e, now) for e in events])
+        self["list"].setList([guide.columns(e, now) for e in events])
         if whole:
             self["status"].setText(_("%d programmes in the guide") % len(events))
         else:

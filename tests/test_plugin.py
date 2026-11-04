@@ -713,6 +713,9 @@ def test_guide_rows_and_fallback():
     assert guide.row(t[1], now, lt) == "Wed 01:00   BBC Test Card HD"
     assert guide.row(t[2], now, lt) == "Wed 02:00   Repeater News  (30 min)"
     assert guide.description(t[0]) == "Short and longer"
+    assert guide.columns(t[0], now, lt) == ("Wed 00:00", "Philips PM5644 Test Card", "now, 35 min left")
+    assert guide.columns(t[1], now, lt) == ("Wed 01:00", "BBC Test Card HD", "")
+    assert guide.columns(t[2], now, lt) == ("Wed 02:00", "Repeater News", "30 min")
 
     class Ev(object):
         def __init__(self, i, b, d, n):

@@ -97,6 +97,19 @@ def row(e, now, localtime=time.localtime):
     return "%s %s   %s%s" % (day, hhmm, e["title"], tail)
 
 
+def columns(e, now, localtime=time.localtime):
+    """The guide's three columns: when, title, and a note (minutes left for
+    the one on now, the length when it is not an hour)."""
+    t = localtime(e["begin"])
+    when = "%s %s" % (time.strftime("%a", t), time.strftime("%H:%M", t))
+    mins = e["duration"] // 60
+    if is_now(e, now):
+        note = "now, %d min left" % max(0, (e["begin"] + e["duration"] - now + 59) // 60)
+    else:
+        note = "" if mins == 60 else "%d min" % mins
+    return when, e["title"], note
+
+
 def description(e):
     """The selected event's words, as much as the stream gives."""
     parts = [p for p in (e.get("short"), e.get("extended")) if p]
