@@ -695,6 +695,50 @@ def test_ppm():
     assert cmd[-6:] == ["-c:a", "pcm_s16le", "-f", "matroska", "-y", "/dev/null"]
 
 
+
+def test_guide_rows_and_fallback():
+    """The EPG key's guide: sorted, nothing over, now marked, an hour left
+    plain; the live now and next when the cache has nothing."""
+    from LynxRepeaters import guide
+    now = 1793750400 + 25 * 60                   # 4 Nov 2026 00:25 UTC
+    lt = time.gmtime                             # GMT: the box's local time in November
+    ev = [guide.event(2, now + 35 * 60, 3600, "BBC Test Card HD"),
+          guide.event(1, now - 25 * 60, 3600, "Philips PM5644 Test Card", "Short", "Short and longer"),
+          guide.event(9, now - 3 * 3600, 3600, "Over already"),
+          guide.event(3, now + 95 * 60, 1800, "Repeater News"),
+          guide.event(1, now - 25 * 60, 3600, "Philips PM5644 Test Card")]
+    t = guide.tidy(ev, now)
+    assert [e["title"] for e in t] == ["Philips PM5644 Test Card", "BBC Test Card HD", "Repeater News"]
+    assert guide.row(t[0], now, lt) == "Wed 00:00   Philips PM5644 Test Card  (now, 35 min left)"
+    assert guide.row(t[1], now, lt) == "Wed 01:00   BBC Test Card HD"
+    assert guide.row(t[2], now, lt) == "Wed 02:00   Repeater News  (30 min)"
+    assert guide.description(t[0]) == "Short and longer"
+
+    class Ev(object):
+        def __init__(self, i, b, d, n):
+            self.i, self.b, self.d, self.n = i, b, d, n
+        getEventId = lambda s: s.i
+        getBeginTime = lambda s: s.b
+        getDuration = lambda s: s.d
+        getEventName = lambda s: s.n
+        getShortDescription = lambda s: ""
+        getExtendedDescription = lambda s: ""
+
+    class Info(object):
+        def getEvent(self, i):
+            return [Ev(1, now - 1500, 3600, "Philips PM5644 Test Card"),
+                    Ev(2, now + 2100, 3600, "BBC Test Card HD")][i]
+
+    class Service(object):
+        def info(self):
+            return Info()
+
+    live = guide.from_live(Service(), now)
+    assert [e["title"] for e in live] == ["Philips PM5644 Test Card", "BBC Test Card HD"]
+    assert guide.from_live(None, now) == []
+    assert guide.from_cache("1:0:1:1:1:FF01:C0AB2E:0:0:0:", now) == []   # no cache off the box
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

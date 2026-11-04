@@ -37,7 +37,7 @@ from Screens.ChoiceBox import ChoiceBox
 from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 
-from . import repeaters, streams, sync
+from . import guide, repeaters, streams, sync
 from .eye import FRAMES as EYE_FRAMES, closure as eye_closure, frame as eye_frame, margin_db
 from .tuning import level, signal
 from .tuning import RepeaterTuner, _timer, live, match_playing, same_service, signal_text, tech_text, title_text
@@ -529,6 +529,7 @@ class RepeaterList(Screen):
             "menu": self.menu,
         }, -1)
         self["numbers"] = ActionMap(["NumberActions"], {"0": self.update_streams}, -1)
+        self["epg"] = _epg_actions(self.guide)
         self["list"].onSelectionChanged.append(self._selected)
         self["list"].onSelectionChanged.append(self._touched)
         self.data = repeaters.load()
@@ -980,12 +981,22 @@ class RepeaterList(Screen):
         choices.append((_("Add a BATC stream by its name (a member's stream)"), self.add_stream))
         if cfg.streams.value:
             choices.append((_("Update the BATC stream status now (0)"), self.update_streams))
+        choices.append((_("Programme guide (EPG)"), self.guide))
         choices.append((_("BATC chat: hide or report"), lambda: self.session.open(ChatSafety, self.chat)))
         choices.append((_("Settings"), self.settings))
         choices.append((_("Check for a newer Lynx now"), lambda: updater(self.session).check(manual=True)))
         choices.append((_("Leave Lynx"), self.leave))
         self.idle_timer.stop()
         self.session.openWithCallback(self._menu_chosen, ChoiceBox, title=_("Lynx"), list=choices)
+
+    def guide(self):
+        """EPG: the guide for what is playing, over the list."""
+        self.idle_timer.stop()
+        self.session.openWithCallback(self._guide_closed, LynxGuide)
+
+    def _guide_closed(self, *args):
+        self._child_closed()
+        self._touched()
 
     def _menu_chosen(self, choice):
         self._child_closed()
@@ -1440,6 +1451,7 @@ class LynxBar(Screen):
             # Left/right: the other programmes on the same repeater.
             "left": lambda: self._programme(-1), "right": lambda: self._programme(1),
         }, -1)
+        self["epg"] = _epg_actions(lambda: self.session.open(LynxGuide))
         self.visible = True
         self.timer, self._tc = _timer(self.update)
         self.onShown.append(self._start)
@@ -1812,6 +1824,98 @@ _QR_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "qr")
 def _qr_pixmap():
     path = os.path.join(_QR_DIR if _factor() > 0.8 else os.path.join(_QR_DIR, "hd"), "report.png")
     return path if os.path.exists(path) else None
+
+
+def _epg_actions(fn):
+    """The EPG key, whatever this image calls it: OpenATV's info bar has it
+    as EPGPressed, the channel list as showEPGList (which INFO also maps
+    to); Lynx's screens take it first (priority -1) and open Lynx's guide."""
+    return ActionMap(["InfobarEPGActions", "ChannelSelectEPGActions"],
+                     {"EPGPressed": fn, "showEPGList": fn}, -1)
+
+
+class LynxGuide(Screen):
+    """EPG on the remote: the programme guide for what Lynx is playing.
+    Enigma2's EPG cache when it holds anything for this service, otherwise
+    the live now and next the stream carries (see guide.py). A BATC stream
+    carries no guide."""
+
+    skin = _scale("""
+<screen name="LynxGuide" position="center,center" size="1600,860" title="Programme guide" backgroundColor="#00141414" flags="wfNoBorder">
+  <eLabel position="0,0" size="1600,90" backgroundColor="#00d0021b"/>
+  <widget zPosition="1" name="title" position="40,0" size="1500,90" font="Regular;40" valign="center" foregroundColor="#00ffffff" backgroundColor="#00d0021b"/>
+  <widget zPosition="1" source="list" render="Listbox" position="30,110" size="980,620" scrollbarMode="showOnDemand" backgroundColor="#00141414" backgroundColorSelected="#00d0021b">
+    <convert type="StringList"/>
+  </widget>
+  <widget zPosition="1" name="details" position="1040,110" size="530,620" font="Regular;28" foregroundColor="#00e0e0e0" backgroundColor="#00141414"/>
+  <widget zPosition="1" name="status" position="30,745" size="1540,44" font="Regular;28" valign="center" foregroundColor="#00ffd200" backgroundColor="#00141414"/>
+  <eLabel position="40,800" size="8,44" backgroundColor="#00d0021b"/>
+  <widget zPosition="1" source="key_red" render="Label" position="56,800" size="300,44" font="Regular;30" valign="center" transparent="1"/>
+</screen>""")
+
+    def __init__(self, session):
+        Screen.__init__(self, session)
+        self.setTitle(_("Programme guide"))
+        self["title"] = Label(_("Programme guide"))
+        self["list"] = List([])
+        self["details"] = Label()
+        self["status"] = Label()
+        self["key_red"] = StaticText(_("Close"))
+        self.events = []
+        self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
+            "ok": self.close, "cancel": self.close, "red": self.close,
+        }, -1)
+        self["epg"] = _epg_actions(self.close)       # EPG again closes it
+        self["list"].onSelectionChanged.append(self._selected)
+        self.onLayoutFinish.append(self.fill)
+
+    def fill(self):
+        nav = self.session.nav
+        ref = nav.getCurrentlyPlayingServiceReference()
+        service = nav.getCurrentService()
+        name = ""
+        try:
+            name = service.info().getName() or ""
+        except Exception:
+            pass
+        if name:
+            self["title"].setText(_("Programme guide: %s") % name)
+        sref = ref.toString() if ref else ""
+        now = int(time.time())
+        if not sref.startswith("1:"):
+            # 4097, 5001, 5002: a stream player. BATC's streams carry no guide.
+            self.events = []
+            self["list"].setList([_("No guide: a BATC stream carries none.")])
+            self["status"].setText(_("Watch the repeater on air for its guide, if it sends one."))
+            return
+        events = guide.from_cache(sref, now)
+        whole = True
+        if not events:
+            events, whole = guide.from_live(service, now), False
+        self.events = events
+        if not events:
+            self["list"].setList([_("This repeater sends no programme guide.")])
+            self["status"].setText(_("A repeater sends one only if its transmitter is set up to."))
+            return
+        self["list"].setList([guide.row(e, now) for e in events])
+        if whole:
+            self["status"].setText(_("%d programmes in the guide") % len(events))
+        else:
+            self["status"].setText(_("Now and next only so far: the rest arrives within an hour, "
+                                     "or at once if the repeater is tuned again"))
+        self._selected()
+
+    def _selected(self):
+        i = self["list"].getIndex()
+        if i is None or i >= len(self.events):
+            self["details"].setText("")
+            return
+        e = self.events[i]
+        t = time.localtime(e["begin"])
+        when = time.strftime("%A %d %B, %H:%M", t)
+        mins = e["duration"] // 60
+        self["details"].setText("%s\n%s, %d min\n\n%s" % (e["title"], when, mins,
+                                                         guide.description(e)))
 
 
 class ChatSafety(Screen):

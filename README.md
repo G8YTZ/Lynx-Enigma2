@@ -189,6 +189,7 @@ rm -rf /usr/lib/enigma2/python/Plugins/Extensions/LynxRepeaters; /sbin/init 4; s
 - **Level:** In dBm on the line below. Uncalibrated, so good for comparing antenna positions; below about -77 dBm the tuner cannot tell any lower, and the margin is the better guide.
 - **CH+ and CH-** (or up and down): The next or previous repeater in the list, by the same route (on air or stream). Keep pressing to scroll; each press moves straight on.
 - **OK:** Hides or shows the bar.
+- **EPG:** The programme guide for the repeater you are watching, when it sends one (GB3OO does: now, next and the week ahead). Up and down move through it, with the details of each programme at the right; EPG again or EXIT closes it. Also from the list and from **MENU, Programme guide**. Just after a repeater starts sending a guide, only now and next may show: the rest arrives within the hour, or at once if you tune the repeater again. BATC streams carry no guide.
 - **Green and yellow:** The same repeater the other way, without going back to the list: **green** watches it on air, **yellow** its BATC stream (when it is streaming). Yellow again on the stream swaps between gstplayer and exteplayer3.
 - **EXIT:** Back to the list.
 
