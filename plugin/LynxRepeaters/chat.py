@@ -260,7 +260,7 @@ class Listener(object):
     def _post(self, packets):
         req = Request(self._url(), data=encode_payload(packets).encode("utf-8"),
                       headers={"User-Agent": "Lynx-Enigma2", "Content-Type": "text/plain;charset=UTF-8"})
-        _open(self.opener, req, 15)
+        _open(self.opener, req, 30)
 
     def _run(self):
         try:
@@ -276,7 +276,7 @@ class Listener(object):
                 self._session()
                 why = "ended"
             except Exception as e:
-                why = str(e) or e.__class__.__name__
+                why = _why(e)
             if not self.running:
                 return
             if time.time() - began > 120:
@@ -292,13 +292,15 @@ class Listener(object):
 
     def _session(self):
         self.opener, self.sid = build_opener(HTTPCookieProcessor(CookieJar())), None
-        opened = self._get(15)
+        began = time.time()
+        opened = self._get(30)
         if not opened or not opened[0].startswith("0"):
             raise IOError("no session from BATC")
         hello = json.loads(opened[0][1:])
         self.sid = hello["sid"]
         self.ping_s = max(5, hello.get("pingInterval", 25000) / 1000.0)
-        self.log("chat: following %s" % self.room)
+        self.log("chat: following %s (BATC answered in %.1f s; ping every %g s, limit %g s)"
+                 % (self.room, time.time() - began, self.ping_s, hello.get("pingTimeout", 0) / 1000.0))
         pinger = threading.Thread(target=self._ping)
         pinger.daemon = True
         pinger.start()
@@ -338,15 +340,58 @@ class Listener(object):
         return 1
 
     def _ping(self):
+        """Pings twice as often as BATC asks, from a thread of its own, so a slow
+        line never lets the session lapse (Colin G4KLB, 4 Nov 2026: BATC kept
+        forgetting the session, "400 Bad Request", about 45 s after each start,
+        and joining seemed to take about 15 s: probably requests on his line
+        are slow, so a ping sent at 25 s reached BATC after its limit)."""
         sid = self.sid
-        while self.running and self.sid == sid:
-            time.sleep(self.ping_s)
-            if not (self.running and self.sid == sid):
-                return
+        every = max(5.0, self.ping_s / 2.0)
+        due = time.time() + every
+        told = [False]
+        busy = [False]           # never two pings at once: Engine.IO answers an
+                                 # overlapping POST with 400 and drops the session
+
+        def one():
+            began = time.time()
             try:
                 self._post(["2"])
-            except Exception:
+                took = time.time() - began
+                if took > 5 and not told[0]:
+                    told[0] = True
+                    self.log("chat: %s: a ping took %.0f s to reach BATC" % (self.room, took))
+            except Exception as e:
+                if not told[0]:
+                    told[0] = True
+                    self.log("chat: %s: ping failed after %.0f s (%s)"
+                             % (self.room, time.time() - began, _why(e)))
+            finally:
+                busy[0] = False
+
+        while self.running and self.sid == sid:
+            time.sleep(max(0.5, due - time.time()))
+            if not (self.running and self.sid == sid):
                 return
+            due += every
+            if busy[0]:
+                continue                           # the last one is still on its way
+            busy[0] = True
+            t = threading.Thread(target=one)
+            t.daemon = True
+            t.start()
+
+
+def _why(e):
+    """An error as text, with what BATC said in the body of an HTTP error
+    (Engine.IO puts its reason there: "Session ID unknown", "Bad request")."""
+    text = str(e) or e.__class__.__name__
+    try:
+        body = e.read()[:120].decode("utf-8", "replace").strip()
+        if body:
+            text += ": " + body
+    except Exception:
+        pass
+    return text
 
 
 if __name__ == "__main__":
