@@ -157,3 +157,16 @@ def now_next(events, now, localtime=time.localtime, n=30):
     if later:
         parts.append("Next: %s  %s" % (clip(later[0]["title"], n), hhmm(later[0]["begin"])))
     return "   ".join(parts)
+
+
+POP_MIN_S = 300
+
+
+def worth_a_pop(events, now):
+    """A new programme pops the Lynx bar up only if it runs five minutes or
+    more: Lynx-Tx's stills carousel names every still (30 to 60 s each),
+    and the bar would otherwise never stay down."""
+    for e in events:
+        if is_now(e, now):
+            return e["duration"] >= POP_MIN_S
+    return False

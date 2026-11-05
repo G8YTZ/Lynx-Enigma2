@@ -807,3 +807,14 @@ def test_now_next_line():
     assert len(c) <= 30 and c.endswith("...") and c.startswith("The Very Long")
     assert guide.clip("Short", 30) == "Short"
     assert guide.clip(u"Café society on the air tonight from Kent", 20).endswith(u"...")
+
+
+def test_no_pop_for_carousel_stills():
+    """A still on the carousel (30 s) does not pop the bar; a programme does."""
+    from LynxRepeaters import guide
+    now = 1793750400
+    stills = [guide.event(1, now - 10, 30, "IMG_6716"), guide.event(2, now + 20, 30, "IMG_6717")]
+    show = [guide.event(1, now - 10, 3600, "Colin's monologue")]
+    assert not guide.worth_a_pop(stills, now)
+    assert guide.worth_a_pop(show, now)
+    assert not guide.worth_a_pop([], now)

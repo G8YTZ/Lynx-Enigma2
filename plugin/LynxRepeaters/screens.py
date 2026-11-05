@@ -1656,7 +1656,7 @@ class LynxBar(Screen):
         if not self.guide_line:
             self.guide_mode = False
         key = guide.now_key(events, now)
-        if key and self.now_key and key != self.now_key:
+        if key and self.now_key and key != self.now_key and guide.worth_a_pop(events, now):
             self._pop()
         if key:
             self.now_key = key
