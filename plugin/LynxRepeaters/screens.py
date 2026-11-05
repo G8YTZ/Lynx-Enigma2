@@ -182,6 +182,7 @@ def _ppm_pixmaps():
 
 PPM_PIXMAPS = _ppm_pixmaps()
 PPM_MS = 50                            # the needles move 20 times a second
+POP_MS = 8000                          # a new programme: the bar shows its now and next this long
 
 
 class DemuxTap(object):
@@ -1453,6 +1454,14 @@ class LynxBar(Screen):
         }, -1)
         self["epg"] = _epg_actions(lambda: self.session.open(LynxGuide))
         self.visible = True
+        # Now and next (Justin, 5 Nov 2026): OK cycles the bar, then now and
+        # next in place of the technical line, then hidden, as Enigma2's own
+        # info bar does; the now and next step only when the repeater sends a
+        # guide. The bar pops up for a while when the programme changes.
+        self.guide_mode, self.guide_line, self.now_key = False, "", None
+        self.popped = False
+        self.pop_timer, self._popc = _timer(self._pop_end)
+        self.onClose.append(self.pop_timer.stop)
         self.timer, self._tc = _timer(self.update)
         self.onShown.append(self._start)
         self.onClose.append(self.timer.stop)
@@ -1493,6 +1502,7 @@ class LynxBar(Screen):
     def set_entry(self, entry):
         """Now showing something else (or about to)."""
         self.entry, self.notice_text = entry, None
+        self.guide_mode, self.guide_line, self.now_key = False, "", None
         if entry.get("pending"):
             self.notice_text = _("Tuning...")
         self.update()
@@ -1604,11 +1614,15 @@ class LynxBar(Screen):
             else:
                 self.meter.stop()
         prog = self.owner.programme() if self.owner and not self.entry.get("pending") else None
+        waiting = self.entry.get("pending") or self.notice_text
+        self._guide(waiting)
         if prog:
             self["hint"].setText(_("< > programme %d/%d   CH+/- next   EXIT list") % prog)
         else:
-            self["hint"].setText(bar_hint(self.entry))
-        waiting = self.entry.get("pending") or self.notice_text
+            hint = bar_hint(self.entry)
+            if self.guide_line and not self.guide_mode:
+                hint = hint.replace(_("OK hide"), _("OK now/next"))
+            self["hint"].setText(hint)
         p = {} if waiting else live(self.session)
         self.modcod = p
         big, beside = title_text(self.entry, p)
@@ -1623,7 +1637,44 @@ class LynxBar(Screen):
         else:
             db = signal(self.session)[0]
             self["signal"].setText(signal_text(self.session, self._margin(db)))
-        self["tech"].setText(self._tech(p))
+        if self.guide_mode and self.guide_line:
+            self["tech"].setText(self.guide_line)
+        else:
+            self["tech"].setText(self._tech(p))
+
+    def _guide(self, waiting):
+        """The live now and next, read each second; pops the bar up when
+        the programme changes. Nothing on a stream or while tuning."""
+        events = []
+        if not (waiting or self.entry.get("via_stream")):
+            try:
+                events = guide.from_live(self.session.nav.getCurrentService())
+            except Exception:
+                events = []
+        now = int(time.time())
+        self.guide_line = guide.now_next(events, now) if events else ""
+        if not self.guide_line:
+            self.guide_mode = False
+        key = guide.now_key(events, now)
+        if key and self.now_key and key != self.now_key:
+            self._pop()
+        if key:
+            self.now_key = key
+
+    def _pop(self):
+        """A new programme: if the bar is hidden, show it with now and next
+        for a while, then hide it again. If it is up, leave it be."""
+        if self.visible:
+            return
+        self.visible, self.guide_mode, self.popped = True, True, True
+        self.show()
+        self.pop_timer.start(POP_MS, True)
+
+    def _pop_end(self):
+        if self.popped:
+            self.popped = False
+            self.visible, self.guide_mode = False, False
+            self.hide()
 
     def _tech(self, p):
         if self.entry.get("via_stream"):
@@ -1643,8 +1694,20 @@ class LynxBar(Screen):
         return text + "   %.0f dBm" % dbm
 
     def toggle(self):
-        self.visible = not self.visible
-        self.show() if self.visible else self.hide()
+        """OK: the bar, then now and next (when there is a guide), then
+        hidden. A bar that popped up by itself counts as showing now and
+        next, so OK hides it."""
+        self.popped = False
+        self.pop_timer.stop()
+        if not self.visible:
+            self.visible, self.guide_mode = True, False
+            self.show()
+        elif not self.guide_mode and self.guide_line:
+            self.guide_mode = True
+        else:
+            self.visible, self.guide_mode = False, False
+            self.hide()
+        self.update()
 
 
 class LynxSettings(ConfigListScreen, Screen):

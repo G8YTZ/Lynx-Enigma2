@@ -116,3 +116,44 @@ def description(e):
     if parts and len(parts) == 2 and parts[1].startswith(parts[0]):
         parts = parts[1:]
     return "\n\n".join(parts)
+
+
+def clip(text, n):
+    """At most n characters, cut at a word with "..." (bytes on Python 2
+    are UTF-8: cut as characters, never mid-letter)."""
+    was_bytes = not isinstance(text, type(u""))
+    u = text.decode("utf-8", "replace") if was_bytes else text
+    if len(u) > n:
+        cut = u[:n - 3]
+        if " " in cut[n // 2:]:
+            cut = cut.rsplit(" ", 1)[0]
+        u = cut.rstrip(" ,.;:-") + u"..."
+    return u.encode("utf-8") if was_bytes else u
+
+
+def now_key(events, now):
+    """What is on now, as something to compare from one second to the next
+    (the Lynx bar pops up when it changes); None without a guide."""
+    for e in events:
+        if is_now(e, now):
+            return (e["begin"], e["title"])
+    return None
+
+
+def now_next(events, now, localtime=time.localtime, n=30):
+    """The Lynx bar's guide line: "Now: <title>  19:00-20:00   Next:
+    <title>  20:00", either half alone if that is all there is; "" without
+    a guide."""
+    hhmm = lambda t: time.strftime("%H:%M", localtime(t))
+    cur = [e for e in events if is_now(e, now)]
+    parts = []
+    after = now
+    if cur:
+        e = cur[0]
+        end = e["begin"] + e["duration"]
+        parts.append("Now: %s  %s-%s" % (clip(e["title"], n), hhmm(e["begin"]), hhmm(end)))
+        after = end
+    later = [e for e in events if e["begin"] >= after and not is_now(e, now)]
+    if later:
+        parts.append("Next: %s  %s" % (clip(later[0]["title"], n), hhmm(later[0]["begin"])))
+    return "   ".join(parts)

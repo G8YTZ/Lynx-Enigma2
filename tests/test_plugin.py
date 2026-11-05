@@ -786,3 +786,24 @@ if __name__ == "__main__":
         if name.startswith("test_"):
             fn()
             print("ok", name)
+
+
+def test_now_next_line():
+    """The Lynx bar's now and next: titles clipped at a word, times local,
+    the key changing when the programme does, nothing without a guide."""
+    from LynxRepeaters import guide
+    now = 1793750400 + 25 * 60                   # 4 Nov 2026 00:25 UTC
+    lt = time.gmtime
+    ev = guide.tidy([guide.event(1, now - 25 * 60, 3600, "Colin's monologue"),
+                     guide.event(2, now + 35 * 60, 1800, "4K test card")], now)
+    assert guide.now_next(ev, now, lt) == "Now: Colin's monologue  00:00-01:00   Next: 4K test card  01:00"
+    assert guide.now_next(ev[1:], now, lt) == "Next: 4K test card  01:00"
+    assert guide.now_next([], now, lt) == ""
+    assert guide.now_key(ev, now) == (now - 25 * 60, "Colin's monologue")
+    assert guide.now_key(ev, now + 40 * 60) == (now + 35 * 60, "4K test card")
+    assert guide.now_key(ev[1:], now) is None
+    long_title = "The Very Long Amateur Television Programme About Everything"
+    c = guide.clip(long_title, 30)
+    assert len(c) <= 30 and c.endswith("...") and c.startswith("The Very Long")
+    assert guide.clip("Short", 30) == "Short"
+    assert guide.clip(u"Café society on the air tonight from Kent", 20).endswith(u"...")
