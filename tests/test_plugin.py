@@ -108,8 +108,22 @@ def test_hunt_unknown_rate():
     fe.WORLD.update(sr=4000, start=0)
     s, log, result, t = _tune("GB3DO")                 # no symbol rate listed
     assert result[0][1] == 4000
-    assert [p.symbol_rate for _, _, p in fe.SCANS] == [2000000, 1500000, 1000000, 4000000]
-    assert len(log) == 4
+    # Each rate as DVB-S2 then DVB-S; the fake locks at 4000 whatever the system.
+    assert [p.symbol_rate for _, _, p in fe.SCANS] == [2000000, 2000000, 1500000, 1500000,
+                                                        1000000, 1000000, 4000000]
+    assert len(log) == 7
+
+
+def test_listed_dvbs_but_sending_s2():
+    """GB3SQ listed as DVB-S; Justin's DVB-S2 test on the same frequency and
+    rate locks only when asked for DVB-S2 (9 Nov 2026)."""
+    fe.WORLD.update(sr=4000, start=0, system=1)
+    try:
+        s, log, result, t = _tune("GB3SQ")
+        assert result and result[0][0] and result[0][1] == 4000
+        assert [p.system for _, _, p in fe.SCANS] == [0, 1]
+    finally:
+        fe.WORLD.pop("system", None)
 
 
 def test_no_signal():
@@ -656,6 +670,21 @@ def test_net_skips_a_dead_address():
         server.close()
     assert 0.25 < first < 2, first                  # waited for the dead one, briefly
     assert again < 0.2, again                       # then went straight to the one that worked
+
+
+def test_both_systems_tried():
+    """At each rate the list's system first, then the other (9 Nov 2026)."""
+    from LynxRepeaters import tuning
+    sq = {"output": {"sr_ks": 4000, "mode": "DVB-S"}}
+    assert tuning.attempts(sq) == [(4000, "DVB-S"), (4000, "DVB-S2")]
+    s2 = {"output": {"sr_ks": 2000, "mode": "DVB-S2"}}
+    assert tuning.attempts(s2) == [(2000, "DVB-S2"), (2000, "DVB-S")]
+    assert tuning.attempts({"output": {"sr_ks": 1500}})[0] == (1500, "DVB-S2")
+    hunt = tuning.attempts(sq, hunt=True)
+    assert len(hunt) == 2 * len(tuning.symbol_rates(sq, hunt=True))
+    sq["box_khz"] = 11054000
+    assert tuning.transponder(sq, 4000, "13", "DVB-S2").system == getattr(tuning.S, "System_DVB_S2", 1)
+    assert tuning.transponder(sq, 4000, "13").system == getattr(tuning.S, "System_DVB_S", 0)
 
 
 def test_chat_hidden():

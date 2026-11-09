@@ -131,10 +131,12 @@ def find_tuner(orbpos=repeaters.BOX_ORBPOS):
     return None
 
 
-def transponder(entry, sr_ks, supply_v="13"):
-    """eDVBFrontendParametersSatellite for one output at one symbol rate.
-    The polarisation sets the LNB supply: vertical 13 V, horizontal 18 V."""
+def transponder(entry, sr_ks, supply_v="13", mode=None):
+    """eDVBFrontendParametersSatellite for one output at one symbol rate,
+    as DVB-S or DVB-S2 (mode; else the list's). The polarisation sets the
+    LNB supply: vertical 13 V, horizontal 18 V."""
     out = entry["output"]
+    mode = mode or out.get("mode")
     p = S()
     p.frequency = entry["box_khz"]
     p.symbol_rate = int(sr_ks) * 1000
@@ -143,7 +145,7 @@ def transponder(entry, sr_ks, supply_v="13"):
     p.fec = getattr(S, "FEC_Auto", 0)
     p.inversion = getattr(S, "Inversion_Unknown", 2)
     p.orbital_position = repeaters.BOX_ORBPOS
-    p.system = (getattr(S, "System_DVB_S", 0) if out.get("mode") == "DVB-S"
+    p.system = (getattr(S, "System_DVB_S", 0) if mode == "DVB-S"
                 else getattr(S, "System_DVB_S2", 1))
     p.modulation = getattr(S, "Modulation_QPSK", 1)
     p.rolloff = getattr(S, "RollOff_alpha_0_35", 0)
@@ -163,6 +165,21 @@ def symbol_rates(entry, hunt=False):
     if hunt or not listed:
         rates += [r for r in repeaters.COMMON_SR_KS if r != listed and r >= repeaters.MIN_SR_KS]
     return rates
+
+
+def attempts(entry, hunt=False):
+    """(symbol rate, system) pairs to scan: at each rate the list's system
+    first, then the other one. A tuner asked for DVB-S does not lock a
+    DVB-S2 signal, and a repeater can change mode before the list catches
+    up (Justin, 9 Nov 2026: his DVB-S2 test on 1304 MHz at 4000 kS/s played
+    as a preset but not as GB3SQ, which the list has as DVB-S)."""
+    listed = entry["output"].get("mode")
+    first = "DVB-S" if listed == "DVB-S" else "DVB-S2"
+    other = "DVB-S2" if first == "DVB-S" else "DVB-S"
+    out = []
+    for sr in symbol_rates(entry, hunt):
+        out += [(sr, first), (sr, other)]
+    return out
 
 
 def playing_stream(session):
@@ -230,10 +247,11 @@ class RepeaterTuner:
         self.settle, self._sl = _timer(self._next)
         self.busy = False
         self.programmes = []
+        self.mode = None
 
     def tune(self, entry, supply_v="13", hunt=False):
         self.entry, self.supply_v = entry, supply_v
-        self.rates = symbol_rates(entry, hunt)
+        self.rates = attempts(entry, hunt)
         self.tried = []
         self.feid = find_tuner()
         self.sr = None
@@ -266,15 +284,16 @@ class RepeaterTuner:
             return
         if not self.rates:
             return self._finish(None, _("No signal at %s kS/s") % ", ".join(str(r) for r in self.tried))
-        self.sr = self.rates.pop(0)
-        self.tried.append(self.sr)
+        self.sr, self.mode = self.rates.pop(0)
+        if self.sr not in self.tried:
+            self.tried.append(self.sr)
         out = self.entry["output"]
-        self.progress(_("Tuning %s: %g MHz, %d kS/s") % (self.entry["call"], out["freq_mhz"], self.sr))
+        self.progress(_("Tuning %s: %g MHz, %d kS/s, %s") % (self.entry["call"], out["freq_mhz"], self.sr, self.mode))
         self.found = []
         self.scan = eComponentScan()
         self._conns = [_connect(self.scan.statusChanged, self._status),
                        _connect(self.scan.newService, self._new_service)]
-        self.scan.addInitial(transponder(self.entry, self.sr, self.supply_v))
+        self.scan.addInitial(transponder(self.entry, self.sr, self.supply_v, self.mode))
         if self.scan.start(self.feid, SCAN_FLAGS) < 0:
             return self._finish(None, _("The tuner is busy (is the box recording?)"))
         self.watchdog.start(SCAN_TIMEOUT_MS, True)
@@ -292,7 +311,7 @@ class RepeaterTuner:
             self.later.start(0, True)
 
     def _timeout(self):
-        log("scan timed out at %d kS/s" % self.sr)
+        log("scan timed out at %d kS/s %s" % (self.sr, self.mode))
         self._after_scan()
 
     def _after_scan(self):

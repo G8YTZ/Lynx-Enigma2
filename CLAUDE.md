@@ -68,7 +68,7 @@ Proven on it: DVB-S2 on 23 cm straight into the satellite tuner, **1000 kS/s and
 - Service: ONID 0xFF01, TSID 1, SID 1; namespace `0x00C02B2E` = position 192 << 16 | 11054 (MHz) & 0xFFFF. Ref `1:0:1:1:1:FF01:C02B2E:0:0:0:`.
 - Repeaters' SID/TSID/ONID are **not published**, so the plugin does not pre-build channels: it **scans the one transponder** (a second or two) and plays what it finds. For an unknown symbol rate it tries `COMMON_SR_KS` in turn.
 - **LNB power on by default.** Justin, like many, feeds small inline preamps from the LNB supply. Horizontal = 18 V, vertical = 13 V (default vertical is fine and cooler). **Off is a choice since 23 Oct 2026 (Justin)**, never the default: `lnbpower.py` stands in for `secClass` inside `Components.NimManager` and turns the voltage mode for position 192 into `switchParam._0V` (in sec.cpp, `_0V` leaves the supply off), then `nimmanager.sec.update()`. Nothing written to the box's tuner settings. Also cuts power to a real 19.2E dish on that tuner. Not yet measured on the box (meter on the F connector).
-- The box takes DVB-S or DVB-S2 without being told; FEC auto.
+- FEC auto. **DVB-S or DVB-S2 must be asked for (Justin, 9 Nov 2026):** his DVB-S2 test on 1304 MHz at 4000 kS/s played as a preset (asked as S2) but not as GB3SQ (listed DVB-S), so a tuner asked for DVB-S does not lock S2 (the earlier note that the box takes either without being told was wrong). `tuning.attempts()` now scans each symbol rate as the list's system, then the other; `transponder(..., mode)`; the progress line names the system. `test_both_systems_tried`, `test_listed_dvbs_but_sending_s2` (the fake tuner now locks only on the right system when `WORLD["system"]` is set). Not yet tried on the box.
 
 ## Bands (decided)
 

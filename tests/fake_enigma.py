@@ -71,7 +71,7 @@ class eComponentScan:
         return 0
 
     def _finish(self):
-        if self.tp.symbol_rate == WORLD["sr"] * 1000:
+        if self.tp.symbol_rate == WORLD["sr"] * 1000 and WORLD.get("system", self.tp.system) == self.tp.system:
             for r in WORLD["refs"]:
                 self.last = r
                 self.newService()
