@@ -1313,7 +1313,10 @@ class ChatBubbles(Screen):
             who.instance.move(ePoint(x + px(b["inset"]), px(y + b["pad"])))
             who.instance.resize(eSize(text, px(b["who"])))
             said.instance.move(ePoint(x + px(b["inset"]), px(y + b["pad"] + b["who"])))
-            said.instance.resize(eSize(text, px(b["line"] * lines)))
+            # A little over the lines' height: the last line's descenders (g, y,
+            # p) were clipped (Justin, 13 Nov 2026). It stays inside the bubble's
+            # bottom padding.
+            said.instance.resize(eSize(text, px(b["line"] * lines + b["pad"] // 2)))
             for w in parts:
                 w.show()
             y += b["pad"] * 2 + b["who"] + b["line"] * lines + b["tail"] + self.GAP
