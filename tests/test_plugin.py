@@ -668,7 +668,9 @@ def test_net_skips_a_dead_address():
     finally:
         socket.getaddrinfo, net.CONNECT_S = real, old
         server.close()
-    assert 0.25 < first < 2, first                  # waited for the dead one, briefly
+    # The dead one costs at most the per-address limit (less where the
+    # network refuses it at once, as some test machines do).
+    assert first < 2, first
     assert again < 0.2, again                       # then went straight to the one that worked
 
 
