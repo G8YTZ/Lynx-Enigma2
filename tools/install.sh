@@ -14,6 +14,19 @@
 # Copyright (C) 2026 Justin Cockett, G8YTZ. GPL-2.0-or-later; see LICENSE.
 set -e
 
+# A box with no battery-backed clock starts at its image's build date (2021 on
+# the Zgemma H11S). HTTPS then fails (certificates "not yet valid"), and so did
+# the stream players' install on a new box (13 Nov 2026). Set it first.
+if [ "$(date +%Y)" -lt 2025 ]; then
+    for n in /usr/sbin/ntpdate /usr/bin/ntpdate /sbin/ntpdate; do
+        if [ -x "$n" ]; then
+            echo "Lynx: the box's clock says $(date +%Y); setting it"
+            "$n" -b pool.ntp.org >/dev/null 2>&1 || true
+            break
+        fi
+    done
+fi
+
 # The commit main is at, so the download matches it and Lynx can tell
 # later whether there is a newer one (its start-up update check).
 SHA=""
@@ -39,8 +52,19 @@ WORK=/tmp/lynx-install.$$
 if [ -z "$LYNX_NO_PLAYERS" ] && command -v opkg >/dev/null 2>&1; then
     echo "Lynx: making sure the stream players are installed"
     opkg update >/dev/null 2>&1 || true
-    opkg install enigma2-plugin-systemplugins-serviceapp gstplayer exteplayer3 >/dev/null 2>&1 \
-        || echo "Lynx: could not install the stream players; streams will use the box's own player"
+    # The DVB media sink hands gstplayer's picture and sound to the box's
+    # decoder: without it a stream plays with no picture (a new box, 13 Nov 2026).
+    opkg install enigma2-plugin-systemplugins-serviceapp gstplayer exteplayer3 \
+        gstreamer1.0-plugin-dvbmediasink >/dev/null 2>&1 || true
+fi
+PLAYERS_OK=1
+if [ -z "$LYNX_NO_PLAYERS" ] && command -v opkg >/dev/null 2>&1; then
+    for p in enigma2-plugin-systemplugins-serviceapp gstplayer exteplayer3; do
+        opkg list-installed 2>/dev/null | grep -q "^$p " || PLAYERS_OK=""
+    done
+    if command -v gst-inspect-1.0 >/dev/null 2>&1; then
+        gst-inspect-1.0 dvbvideosink >/dev/null 2>&1 || PLAYERS_OK=""
+    fi
 fi
 
 echo "Lynx: downloading"
@@ -77,6 +101,21 @@ if [ -n "$SHA" ]; then
     echo "$SHA" > "$DEST/version.txt"
 else
     rm -f "$DEST/version.txt"
+fi
+
+if [ -z "$PLAYERS_OK" ]; then
+    echo ""
+    echo "************************************************************"
+    echo "  Lynx is installed, but the stream players did not install."
+    echo "  BATC streams may play with no picture. To fix, run:"
+    echo ""
+    echo "    opkg update"
+    echo "    opkg install enigma2-plugin-systemplugins-serviceapp \\"
+    echo "        gstplayer exteplayer3 gstreamer1.0-plugin-dvbmediasink"
+    echo ""
+    echo "  then run this installer again."
+    echo "************************************************************"
+    echo ""
 fi
 
 if [ -n "$LYNX_NO_RESTART" ]; then
